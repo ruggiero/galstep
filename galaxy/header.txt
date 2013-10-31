@@ -1,0 +1,46 @@
+# Mass array. Either gives the mass of each particle type or 0.0,
+# if defined individually for each particle
+0.0	0.0	0.0	0.0	0.0	0.0	
+
+# Time - has no meaning for initial conditions
+0.0
+
+# Redshift
+0.0
+
+# Star formation rate flag
+0
+
+# Feedback flag
+0
+
+# Cooling flag
+0
+
+# Total number of files
+1
+
+# The box size
+0.0
+
+# Omega_0
+0.0
+
+# Omega_Lambda
+0.0
+
+# Hubble Parameter
+1.0
+
+# Star formation time flag
+0
+
+# Metals flag
+0
+
+# If the number of particles is 64 bits, this is the "high word" part
+# of the total particle numbers
+0	0	0	0	0	0	
+
+# Is entropy used intstead of internal energy?
+0
