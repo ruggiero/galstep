@@ -7,6 +7,7 @@ import numpy as np
 import numpy.random as nprand
 from scipy.optimize import brentq
 
+from optimized_functions import phi
 from snapwrite import process_input, write_snapshot
 
 
@@ -36,7 +37,7 @@ def init():
     global a_halo, a_bulge, Rd, z0
     global N_total, M_total
 
-    if not path.isfile("header.txt") and path.isfile("galaxy_param.txt"):
+    if not (path.isfile("header.txt") and path.isfile("galaxy_param.txt")):
         print "header.txt or galaxy_param.txt missing."
         exit(0)
 
@@ -46,6 +47,7 @@ def init():
     a_halo, a_bulge, Rd, z0 = (float(i[0]) for i in vars_[6:10])
     M_total = M_disk + M_bulge + M_halo
     N_total = N_disk + N_bulge + N_halo
+
 
 def dehnen_inverse_cumulative(Mc, M, a, core):
     if(core):
@@ -119,7 +121,6 @@ def disk_height_inverse_cumulative(frac):
 
 
 def set_velocities(coords):
-    potential_tabulated = []
     return np.zeros(N_total)
 
 
@@ -132,6 +133,13 @@ def write_input_file(galaxy_data):
     write_snapshot(n_part=[0, N_halo, N_disk, N_bulge, 0, 0], from_text=False,
                    data_list=[coords, vels, ids, masses])
 
+
+def potential_tosco(point, coords_disk):
+	sum_ = 0
+	for i in coords_disk:
+		sum_ -= G * (M_disk / N_disk) / (np.linalg.norm(point - i))
+	return sum_
+	
 
 if __name__ == '__main__':
     main()
