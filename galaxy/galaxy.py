@@ -134,12 +134,5 @@ def write_input_file(galaxy_data):
                    data_list=[coords, vels, ids, masses])
 
 
-def potential_tosco(point, coords_disk):
-	sum_ = 0
-	for i in coords_disk:
-		sum_ -= G * (M_disk / N_disk) / (np.linalg.norm(point - i))
-	return sum_
-	
-
 if __name__ == '__main__':
     main()
