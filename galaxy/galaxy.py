@@ -6,8 +6,10 @@ from sys import exit
 import numpy as np
 import numpy.random as nprand
 from scipy.optimize import brentq
+from scipy.interpolate import interp1d
+from bisect import bisect_left
 
-from optimized_functions import phi
+from optimized_functions import phi_disk
 from snapwrite import process_input, write_snapshot
 
 
@@ -20,15 +22,6 @@ def main():
     init()
     galaxy_data = generate_galaxy()
     write_input_file(galaxy_data)
-
-
-def generate_galaxy():
-    coords_halo = set_halo_positions()
-    coords_disk = set_disk_positions()
-    coords_bulge = set_bulge_positions()
-    coords = np.concatenate((coords_halo, coords_disk, coords_bulge))
-    vels = set_velocities(coords)
-    return [coords, vels]
 
 
 def init():
@@ -49,12 +42,53 @@ def init():
     N_total = N_disk + N_bulge + N_halo
 
 
+def generate_galaxy():
+    coords_halo = set_halo_positions()
+    coords_disk = set_disk_positions()
+    #coords_bulge = set_bulge_positions()
+    #coords = np.concatenate((coords_halo, coords_disk, coords_bulge))
+    coords = np.concatenate((coords_halo, coords_disk))
+    vels = set_velocities(coords)
+    coords = np.array(coords, order='C')
+    coords.shape = (1, -1) # Linearizing the array.
+    vels = np.array(vels, order='C')
+    vels.shape = (1, -1)
+    return [coords[0], vels[0]]
+
+
 def dehnen_inverse_cumulative(Mc, M, a, core):
     if(core):
         return ((a * (Mc**(2/3.)*M**(4/3.) + Mc*M + Mc**(4/3.)*M**(2/3.))) /
                    (Mc**(1/3.) * M**(2/3.) * (M-Mc)))
     else:
         return (a * ((Mc*M)**0.5 + Mc)) / (M-Mc)
+
+
+def dehnen_potential(r, M, a, core):
+    if(core):
+        return (G*M)/(2*a) * ((r/(r+a))**2 - 1)
+    else:
+        return (G*M)/a * (r/(r+a) - 1)
+
+
+def halo_density(r):
+    if(halo_core):
+        return (3*M_halo)/(4*np.pi) * a_halo/(r+a_halo)**4
+    else:
+        return M_halo/(2*np.pi) * a_halo/(r*(r+a_halo)**3)
+
+
+def disk_density(rho, z):
+    r = (rho**2 + z**2)**0.5
+    cte = M_disk/(4*np.pi*z0*Rd**2)
+    return cte * (1/np.cosh(z/(2*z0)))**2 * np.exp(-r/Rd)
+ 
+
+def bulge_density(r):
+    if(bulge_core):
+        return (3*M_bulge)/(4*np.pi) * a_bulge/(r+a_bulge)**4
+    else:
+        return M_bulge/(2*np.pi) * a_bulge/(r*(r+a_bulge)**3)
 
 
 def set_halo_positions():
@@ -69,9 +103,7 @@ def set_halo_positions():
 
     # Older NumPy versions freak out without this line.
     coords = np.column_stack((xs, ys, zs))
-    coords = np.array(coords, order='C')
-    coords.shape = (1, -1) # Linearizing the array.
-    return coords[0]
+    return coords
 
 
 def set_bulge_positions():
@@ -83,9 +115,7 @@ def set_bulge_positions():
     ys = radii * np.sin(thetas) * np.sin(phis)
     zs = radii * np.cos(thetas)
     coords = np.column_stack((xs, ys, zs))
-    coords = np.array(coords, order='C')
-    coords.shape = (1, -1)
-    return coords[0]
+    return coords
 
 
 def set_disk_positions():
@@ -94,17 +124,12 @@ def set_disk_positions():
     sample = nprand.sample(N_disk)
     for i, s in enumerate(sample):
         radii[i] = disk_radial_inverse_cumulative(s)
-    
     zs = disk_height_inverse_cumulative(nprand.sample(N_disk))
     phis = 2 * np.pi * nprand.sample(N_disk)
-
     xs = radii * np.cos(phis)
     ys = radii * np.sin(phis)
-
     coords = np.column_stack((xs, ys, zs))
-    coords = np.array(coords, order='C')
-    coords.shape = (1, -1)
-    return coords[0]
+    return coords
 
 
 def disk_radial_cumulative(r):
@@ -120,17 +145,138 @@ def disk_height_inverse_cumulative(frac):
     return 0.5 * z0 * np.log(frac/(1-frac))
 
 
-def set_velocities(coords):
-    return np.zeros(N_total)
+def interpolate(value, axis):
+    index = bisect_left(axis, value)
+    if(index >= len(axis)-1):
+        return len(axis)-1
+    else:
+        return index
 
+
+def set_velocities(coords):
+    N_rho = Nz = 110
+    rho_max = 200 * a_halo
+    z_max = 2000 * a_halo # This has to go far so I can estimate the integral
+
+    rho_axis = np.logspace(np.log10(0.1), np.log10(rho_max), N_rho)
+    z_axis = np.logspace(np.log10(0.1), np.log10(z_max), Nz)
+    phi_grid = np.zeros((N_rho, Nz))
+
+    # Filling the potential grid
+    for i in range(N_rho):
+        for j in range(Nz):
+            p = int(100.0*(i*j + j) / (N_rho*Nz))
+            r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
+            phi_grid[i][j] += dehnen_potential(r, M_halo, a_halo, halo_core)
+            phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j], M_disk, Rd, z0)
+            #phi_grid[i][j] += dehnen_potential(r, M_bulge, a_bulge, bulge_core)
+
+    # The [0], [1] and [2] components of this grid will refer to the halo,
+    # disk and bulge, respectively. The calculation being performed here
+    # follows the prescription found in Springel & White, 1999.
+    sz_grid = np.zeros((3, N_rho, Nz))
+    ys = np.zeros((3, N_rho, Nz))
+    for i in range(N_rho):
+        for j in range(1, Nz):
+            r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
+            dz = z_axis[j] - z_axis[j-1]
+            dphi = phi_grid[i][j] - phi_grid[i][j-1]
+            ys[0][i][j] = halo_density(r) * dphi/dz # Filling the integrands array
+            ys[1][i][j] = disk_density(rho_axis[i], z_axis[j]) * dphi/dz
+        ys[0][i][0] = ys[0][i][1]
+        ys[1][i][0] = ys[1][i][1]
+        for j in range(0, Nz-1):
+            r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
+            sz_grid[0][i][j] = 1/halo_density(r) * np.trapz(ys[0][i][j:], z_axis[j:])
+            sz_grid[1][i][j] = 1/ disk_density(rho_axis[i], z_axis[j]) * np.trapz(ys[1][i][j:], z_axis[j:])
+        sz_grid[0][i][Nz-1] = sz_grid[0][i][Nz-2]
+        sz_grid[1][i][Nz-1] = sz_grid[1][i][Nz-2]
+
+    sphi_grid = np.zeros((3, N_rho, Nz))
+    for i in range(N_rho-2):
+        for j in range(Nz):
+            r0 = (rho_axis[i]**2 + z_axis[j]**2)**0.5
+            r1 = (rho_axis[i+1]**2 + z_axis[j]**2)**0.5
+            drho = rho_axis[i+1] - rho_axis[i]
+            dphi = phi_grid[i+1][j] - phi_grid[i][j]
+            d2phi = phi_grid[i+2][j] - 2*phi_grid[i+1][j] + phi_grid[i][j]
+            kappa2 = 3/rho_axis[i] * dphi/drho + d2phi/drho**2
+            gamma2 = 4/(kappa2*rho_axis[i]) * dphi/drho
+            sphi_grid[0][i][j] = (sz_grid[0][i][j] + rho_axis[i]/halo_density(r0) *
+                (halo_density(r1)*sz_grid[0][i+1][j] - 
+                halo_density(r0)*sz_grid[0][i][j]) / drho +
+                rho_axis[i] * dphi/drho)
+            sphi_grid[1][i][j] = sz_grid[1][i][j] / gamma2
+            sphi_grid[2][i][j] = (sz_grid[2][i][j] + rho_axis[i]/bulge_density(r0) *
+                (bulge_density(r1)*sz_grid[2][i+1][j] - 
+                bulge_density(r0)*sz_grid[2][i][j]) / drho +
+                rho_axis[i] * dphi/drho)
+            for k in range(3):
+                sphi_grid[k][N_rho-2][j] = sphi_grid[k][N_rho-3][j]
+                sphi_grid[k][N_rho-1][j] = sphi_grid[k][N_rho-3][j]
+
+    # Dictionary to hold interpolator functions for the circular velocity
+    # of the disk, one function per value of z. They are created on the run,
+    # to avoid creating functions for values of z which are not used.
+    vphis = {}
+    #vels = np.zeros((N_halo+N_disk+N_bulge, 3))
+    vels = np.zeros((N_halo+N_disk, 3))
+    for i, part in enumerate(coords):
+        rho = (part[0]**2 + part[1]**2)**0.5
+        z = abs(part[2])
+        bestz = interpolate(z, z_axis)
+        bestr = interpolate(r, rho_axis)
+        if(i < N_halo):
+            sigmaz = sz_grid[0][bestr][bestz]
+            sigmap = sphi_grid[0][bestr][bestz]
+            vz = nprand.normal(scale=abs(0.001+sigmaz**0.5))
+            vr = nprand.normal(scale=abs(0.001+sigmaz**0.5))
+            vphi = nprand.normal(scale=abs(0.001+sigmap**0.5))
+        elif(i >= N_halo and i < N_halo+N_disk):
+            sigmaz = sz_grid[1][bestr][bestz]
+            sigmap = sphi_grid[1][bestr][bestz]
+            vz = nprand.normal(scale=abs(0.001+sigmaz**0.5))
+            vr = nprand.normal(scale=abs(0.001+sigmaz**0.5))
+            vphi = nprand.normal(scale=abs(0.001+sigmap**0.5))
+            if(bestz not in vphis):
+                ds = np.zeros(N_rho)
+                for j in range(1, N_rho):
+                    dphi = phi_grid[j][bestz]-phi_grid[j-1][bestz]
+                    drho = rho_axis[j]-rho_axis[j-1]
+                    ds[j] = dphi/drho
+                ds[0] = ds[1]
+                vphis[bestz] = interp1d(rho_axis, ds, kind='cubic')
+            vphi += (rho * vphis[bestz](rho))**0.5
+        #else:
+        #    vz = nprand.normal(scale=abs(0.001+sz_grid[2][bestr][bestz]))
+        #    vr = nprand.normal(scale=abs(0.001+sz_grid[2][bestr][bestz]))
+        #    vphi = nprand.normal(scale=abs(0.001+sphi_grid[2][bestr][bestz]))
+        phi = np.arctan(part[1] / part[0])
+        vels[i][0] = vr*np.cos(phi) - vphi*np.sin(phi)
+        vels[i][1] = vr*np.sin(phi) + vphi*np.cos(phi)
+        if(part[0] < 0):
+            vels[i][0] *= -1
+            vels[i][1] *= -1
+        vels[i][2] = vz
+    return vels
+ 
 
 def write_input_file(galaxy_data):
     coords = galaxy_data[0]
     vels = galaxy_data[1]
-    masses = np.empty(N_total)
-    masses.fill(M_total / N_total)
-    ids = np.arange(1, N_total + 1, 1)
-    write_snapshot(n_part=[0, N_halo, N_disk, N_bulge, 0, 0], from_text=False,
+    m_halo = np.empty(N_halo)
+    m_halo.fill(M_halo/N_halo)
+    m_disk = np.empty(N_disk)
+    m_disk.fill(M_disk/N_disk)
+    m_bulge = np.empty(N_bulge)
+    m_bulge.fill(M_bulge/N_bulge)
+    #masses = np.concatenate((m_halo, m_disk, m_bulge))
+    masses = np.concatenate((m_halo, m_disk))
+    #ids = np.arange(1, N_total + 1, 1)
+    ids = np.arange(1, N_halo+N_disk+1, 1)
+    #write_snapshot(n_part=[0, N_halo, N_disk, N_bulge, 0, 0], from_text=False,
+    #                data_list=[coords, vels, ids, masses])
+    write_snapshot(n_part=[0, N_halo, N_disk, 0, 0, 0], from_text=False,
                    data_list=[coords, vels, ids, masses])
 
 
