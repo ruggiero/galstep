@@ -9,8 +9,8 @@
 
 ## Installation
 
-galaxy.py uses a custom Cython library that has to be compiled
-For that, just cd to /galaxy and type 'make'. A new file, named
+galaxy.py uses a custom Cython library that has to be compiled.
+For compiling, just cd to /galaxy and type 'make'. A new file, named
 optimized_funcions.so, will be created, and then galaxy.py will
 be ready for execution.
 
