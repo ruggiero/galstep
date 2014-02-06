@@ -13,8 +13,8 @@ from optimized_functions import phi_disk
 from snapwrite import process_input, write_snapshot
 
 
-halo_core = True
-bulge_core = True
+halo_core = False
+bulge_core = False
 G = 43007.1
 
 
@@ -154,7 +154,7 @@ def interpolate(value, axis):
 
 
 def set_velocities(coords):
-    N_rho = Nz = 110
+    N_rho = Nz = 5
     rho_max = 200 * a_halo
     z_max = 2000 * a_halo # This has to go far so I can estimate the integral
 
@@ -165,7 +165,6 @@ def set_velocities(coords):
     # Filling the potential grid
     for i in range(N_rho):
         for j in range(Nz):
-            p = int(100.0*(i*j + j) / (N_rho*Nz))
             r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
             phi_grid[i][j] += dehnen_potential(r, M_halo, a_halo, halo_core)
             phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j], M_disk, Rd, z0)
@@ -193,13 +192,13 @@ def set_velocities(coords):
         sz_grid[1][i][Nz-1] = sz_grid[1][i][Nz-2]
 
     sphi_grid = np.zeros((3, N_rho, Nz))
-    for i in range(N_rho-2):
+    for i in range(1, N_rho-1):
         for j in range(Nz):
             r0 = (rho_axis[i]**2 + z_axis[j]**2)**0.5
             r1 = (rho_axis[i+1]**2 + z_axis[j]**2)**0.5
             drho = rho_axis[i+1] - rho_axis[i]
             dphi = phi_grid[i+1][j] - phi_grid[i][j]
-            d2phi = phi_grid[i+2][j] - 2*phi_grid[i+1][j] + phi_grid[i][j]
+            d2phi = phi_grid[i+1][j] - 2*phi_grid[i][j] + phi_grid[i-1][j]
             kappa2 = 3/rho_axis[i] * dphi/drho + d2phi/drho**2
             gamma2 = 4/(kappa2*rho_axis[i]) * dphi/drho
             sphi_grid[0][i][j] = (sz_grid[0][i][j] + rho_axis[i]/halo_density(r0) *
@@ -212,7 +211,7 @@ def set_velocities(coords):
                 bulge_density(r0)*sz_grid[2][i][j]) / drho +
                 rho_axis[i] * dphi/drho)
             for k in range(3):
-                sphi_grid[k][N_rho-2][j] = sphi_grid[k][N_rho-3][j]
+                sphi_grid[k][0][j] = sphi_grid[k][1][j]
                 sphi_grid[k][N_rho-1][j] = sphi_grid[k][N_rho-3][j]
 
     # Dictionary to hold interpolator functions for the circular velocity
@@ -229,15 +228,15 @@ def set_velocities(coords):
         if(i < N_halo):
             sigmaz = sz_grid[0][bestr][bestz]
             sigmap = sphi_grid[0][bestr][bestz]
-            vz = nprand.normal(scale=abs(0.001+sigmaz**0.5))
-            vr = nprand.normal(scale=abs(0.001+sigmaz**0.5))
-            vphi = nprand.normal(scale=abs(0.001+sigmap**0.5))
+            vz = nprand.normal(scale=sigmaz**0.5)
+            vr = nprand.normal(scale=sigmaz**0.5)
+            vphi = nprand.normal(scale=sigmap**0.5)
         elif(i >= N_halo and i < N_halo+N_disk):
             sigmaz = sz_grid[1][bestr][bestz]
             sigmap = sphi_grid[1][bestr][bestz]
-            vz = nprand.normal(scale=abs(0.001+sigmaz**0.5))
-            vr = nprand.normal(scale=abs(0.001+sigmaz**0.5))
-            vphi = nprand.normal(scale=abs(0.001+sigmap**0.5))
+            vz = nprand.normal(scale=sigmaz**0.5)
+            vr = nprand.normal(scale=sigmaz**0.5)
+            vphi = nprand.normal(scale=sigmap**0.5)
             if(bestz not in vphis):
                 ds = np.zeros(N_rho)
                 for j in range(1, N_rho):
