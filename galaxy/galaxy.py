@@ -48,6 +48,7 @@ def generate_galaxy():
     #coords_bulge = set_bulge_positions()
     #coords = np.concatenate((coords_halo, coords_disk, coords_bulge))
     coords = np.concatenate((coords_halo, coords_disk))
+    #coords = coords_halo
     vels = set_velocities(coords)
     coords = np.array(coords, order='C')
     coords.shape = (1, -1) # Linearizing the array.
@@ -79,9 +80,8 @@ def halo_density(r):
 
 
 def disk_density(rho, z):
-    r = (rho**2 + z**2)**0.5
     cte = M_disk/(4*np.pi*z0*Rd**2)
-    return cte * (1/np.cosh(z/(2*z0)))**2 * np.exp(-r/Rd)
+    return cte * (1/np.cosh(z/(2*z0)))**2 * np.exp(-rho/Rd)
  
 
 def bulge_density(r):
@@ -154,7 +154,7 @@ def interpolate(value, axis):
 
 
 def set_velocities(coords):
-    N_rho = Nz = 5
+    N_rho = Nz = 50
     rho_max = 200 * a_halo
     z_max = 2000 * a_halo # This has to go far so I can estimate the integral
 
@@ -187,7 +187,7 @@ def set_velocities(coords):
         for j in range(0, Nz-1):
             r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
             sz_grid[0][i][j] = 1/halo_density(r) * np.trapz(ys[0][i][j:], z_axis[j:])
-            sz_grid[1][i][j] = 1/ disk_density(rho_axis[i], z_axis[j]) * np.trapz(ys[1][i][j:], z_axis[j:])
+            sz_grid[1][i][j] = 1/disk_density(rho_axis[i], z_axis[j]) * np.trapz(ys[1][i][j:], z_axis[j:])
         sz_grid[0][i][Nz-1] = sz_grid[0][i][Nz-2]
         sz_grid[1][i][Nz-1] = sz_grid[1][i][Nz-2]
 
@@ -206,10 +206,6 @@ def set_velocities(coords):
                 halo_density(r0)*sz_grid[0][i][j]) / drho +
                 rho_axis[i] * dphi/drho)
             sphi_grid[1][i][j] = sz_grid[1][i][j] / gamma2
-            sphi_grid[2][i][j] = (sz_grid[2][i][j] + rho_axis[i]/bulge_density(r0) *
-                (bulge_density(r1)*sz_grid[2][i+1][j] - 
-                bulge_density(r0)*sz_grid[2][i][j]) / drho +
-                rho_axis[i] * dphi/drho)
             for k in range(3):
                 sphi_grid[k][0][j] = sphi_grid[k][1][j]
                 sphi_grid[k][N_rho-1][j] = sphi_grid[k][N_rho-3][j]
@@ -224,7 +220,7 @@ def set_velocities(coords):
         rho = (part[0]**2 + part[1]**2)**0.5
         z = abs(part[2])
         bestz = interpolate(z, z_axis)
-        bestr = interpolate(r, rho_axis)
+        bestr = interpolate(rho, rho_axis)
         if(i < N_halo):
             sigmaz = sz_grid[0][bestr][bestz]
             sigmap = sphi_grid[0][bestr][bestz]
@@ -232,6 +228,9 @@ def set_velocities(coords):
             vr = nprand.normal(scale=sigmaz**0.5)
             vphi = nprand.normal(scale=sigmap**0.5)
         elif(i >= N_halo and i < N_halo+N_disk):
+            if(bestz == 0):
+                bestz += 1
+
             sigmaz = sz_grid[1][bestr][bestz]
             sigmap = sphi_grid[1][bestr][bestz]
             vz = nprand.normal(scale=sigmaz**0.5)
@@ -250,12 +249,22 @@ def set_velocities(coords):
         #    vz = nprand.normal(scale=abs(0.001+sz_grid[2][bestr][bestz]))
         #    vr = nprand.normal(scale=abs(0.001+sz_grid[2][bestr][bestz]))
         #    vphi = nprand.normal(scale=abs(0.001+sphi_grid[2][bestr][bestz]))
-        phi = np.arctan(part[1] / part[0])
+        x = part[0]
+        y = part[1]
+        if(x > 0 and y > 0):
+            phi = np.arctan(part[1] / part[0])
+        elif(x < 0 and y > 0):
+            phi = np.pi - np.arctan(-y/x)
+        elif(x < 0 and y < 0):
+            phi = np.pi + np.arctan(y/x)
+        elif(x > 0 and y < 0):
+            phi = 2 * np.pi - np.arctan(-y/x)
+            
         vels[i][0] = vr*np.cos(phi) - vphi*np.sin(phi)
         vels[i][1] = vr*np.sin(phi) + vphi*np.cos(phi)
-        if(part[0] < 0):
-            vels[i][0] *= -1
-            vels[i][1] *= -1
+        #if(part[0] < 0):
+        #    vels[i][0] *= -1
+        #    vels[i][1] *= -1
         vels[i][2] = vz
     return vels
  
@@ -271,6 +280,7 @@ def write_input_file(galaxy_data):
     m_bulge.fill(M_bulge/N_bulge)
     #masses = np.concatenate((m_halo, m_disk, m_bulge))
     masses = np.concatenate((m_halo, m_disk))
+    #masses = m_halo
     #ids = np.arange(1, N_total + 1, 1)
     ids = np.arange(1, N_halo+N_disk+1, 1)
     #write_snapshot(n_part=[0, N_halo, N_disk, N_bulge, 0, 0], from_text=False,
