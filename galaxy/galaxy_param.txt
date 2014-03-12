@@ -8,13 +8,13 @@
 0.1
 
 # N_halo
-3000
+24000
 
 # N_disk
 3000
 
 # N_bulge
-3000
+300
 
 # a_halo
 50
@@ -26,4 +26,4 @@
 20
 
 # z0 (height scale factor for the disk)
-4
+5
