@@ -79,9 +79,8 @@ def halo_density(r):
 
 
 def disk_density(rho, z):
-    print rho, z
     cte = M_disk/(4*pi*z0*Rd**2)
-    return cte * (1/cosh(z/(2*z0)))**2 * exp(-rho/Rd)
+    return cte * (1/cosh(z/z0))**2 * exp(-rho/Rd)
  
 
 def bulge_density(r):
@@ -154,7 +153,7 @@ def interpolate(value, axis):
 
 
 def set_velocities(coords):
-    N_rho = Nz = 50
+    N_rho = Nz = 100
     rho_max = 200 * a_halo
     z_max = 2000 * a_halo # This has to go far so I can estimate the integral.
     rho_axis = np.logspace(log10(0.1), log10(rho_max), N_rho)
@@ -256,15 +255,9 @@ def set_velocities(coords):
             vz = nprand.normal(scale=sigmaz**0.5)
             vr = nprand.normal(scale=sigmaz**0.5)
             vphi = nprand.normal(scale=sigmap**0.5)
-            if(bestz not in vphis):
-                ds = np.zeros(N_rho)
-                for j in range(1, N_rho):
-                    dphi = phi_grid[j][bestz]-phi_grid[j-1][bestz]
-                    drho = rho_axis[j]-rho_axis[j-1]
-                    ds[j] = dphi/drho
-                ds[0] = ds[1]
-                vphis[bestz] = interp1d(rho_axis, ds, kind='cubic')
-            vphi += (rho * vphis[bestz](rho))**0.5
+            dphi = phi_grid[bestr][bestz] - phi_grid[bestr-1][bestz]
+            drho = rho_axis[bestr] - rho_axis[bestr-1]
+            vphi += (rho_axis[bestr]*dphi/drho)**0.5
         else:
             sigmaz = sz_grid[2][bestr][bestz]
             sigmap = sphi_grid[2][bestr][bestz]
