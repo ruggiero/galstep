@@ -255,9 +255,15 @@ def set_velocities(coords):
             vz = nprand.normal(scale=sigmaz**0.5)
             vr = nprand.normal(scale=sigmaz**0.5)
             vphi = nprand.normal(scale=sigmap**0.5)
-            dphi = phi_grid[bestr][bestz] - phi_grid[bestr-1][bestz]
-            drho = rho_axis[bestr] - rho_axis[bestr-1]
-            vphi += (rho_axis[bestr]*dphi/drho)**0.5
+            if(bestz not in vphis):
+                ds = np.zeros(N_rho)
+                for j in range(1, N_rho):
+                    dphi = phi_grid[j][bestz]-phi_grid[j-1][bestz]
+                    drho = rho_axis[j]-rho_axis[j-1]
+                    ds[j] = dphi/drho
+                ds[0] = ds[1]
+                vphis[bestz] = interp1d(rho_axis, ds, kind='cubic')
+            vphi += (rho * vphis[bestz](rho))**0.5
         else:
             sigmaz = sz_grid[2][bestr][bestz]
             sigmap = sphi_grid[2][bestr][bestz]
