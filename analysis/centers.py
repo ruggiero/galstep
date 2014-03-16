@@ -3,7 +3,7 @@ import numpy as np
 
 Mh = 100000
 G = 43007.1
-TOL = 4 # Error tolerance in the computed COD.
+TOL = 0.5 # Error tolerance in the computed COD.
 
 
 # Calculates the numerical potential at 'point' (which is given as a
@@ -36,7 +36,7 @@ def COD(p_list):
     COM = sum(p.pos for p in p_list) / len(p_list)
     print "the COM is (%f, %f, %f)" % (COM[0], COM[1], COM[2])
     recorded_phis = {}
-    step = 64 # In kpc
+    step = 16 # In kpc
     psums = possible_sums(step)
     guess = (0, 0, 0)
     new_guess = COM
