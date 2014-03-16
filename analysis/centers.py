@@ -3,7 +3,7 @@ import numpy as np
 
 Mh = 100000
 G = 43007.1
-TOL = 0.5 # Error tolerance in the computed COD.
+TOL = 1 # Error tolerance in the computed COD.
 
 
 # Calculates the numerical potential at 'point' (which is given as a
