@@ -173,9 +173,7 @@ def set_velocities(coords, T_cl_grid):
         for j in range(Nz):
             r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
             phi_grid[i][j] += dehnen_potential(r, M_halo, a_halo, halo_core)
-            phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j], M_disk, Rd, z0)
-            #TODO: optimize
-            phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j], M_gas, Rd, z0)
+            phi_grid[i][j] += (M_disk + M_gas) * phi_disk(rho_axis[i], z_axis[j], 1, Rd, z0)
             phi_grid[i][j] += dehnen_potential(r, M_bulge, a_bulge, bulge_core)
 
     # The [0], [1] and [2] components of this grid will refer to the halo,
