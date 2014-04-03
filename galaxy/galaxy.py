@@ -2,6 +2,7 @@
 
 from os import path
 from sys import exit
+from sys import path as syspath
 
 import numpy as np
 import numpy.random as nprand
@@ -12,6 +13,8 @@ from bisect import bisect_left
 
 from optimized_functions import phi_disk
 from snapwrite import process_input, write_snapshot
+syspath.append(path.join(path.dirname(__file__), '..', 'misc'))
+from units import temp_to_internal_energy
 
 
 halo_core = False
@@ -26,8 +29,8 @@ def main():
 
 
 def init():
-    global M_halo, M_disk, M_bulge
-    global N_halo, N_disk, N_bulge
+    global M_halo, M_disk, M_bulge, M_gas
+    global N_halo, N_disk, N_bulge, N_gas
     global a_halo, a_bulge, Rd, z0
     global N_total, M_total
 
@@ -36,30 +39,33 @@ def init():
         exit(0)
 
     vars_ = process_input("galaxy_param.txt")
-    M_halo, M_disk, M_bulge = (float(i[0]) for i in vars_[0:3])
-    N_halo, N_disk, N_bulge = (float(i[0]) for i in vars_[3:6])
+    M_halo, M_disk, M_bulge, M_gas = (float(i[0]) for i in vars_[0:4])
+    N_halo, N_disk, N_bulge, N_gas = (float(i[0]) for i in vars_[4:8])
     a_halo, a_bulge, Rd, z0 = (float(i[0]) for i in vars_[6:10])
-    M_total = M_disk + M_bulge + M_halo
-    N_total = N_disk + N_bulge + N_halo
+    M_total = M_disk + M_bulge + M_halo + M_gas
+    N_total = N_disk + N_bulge + N_halo + N_gas
 
 
 def generate_galaxy():
     coords_halo = set_halo_positions()
-    coords_disk = set_disk_positions()
+    coords_disk = set_disk_positions(N_disk)
+    coords_gas = set_disk_positions(N_gas)
     coords_bulge = set_bulge_positions()
-    coords = np.concatenate((coords_halo, coords_disk, coords_bulge))
-    vels = set_velocities(coords)
+    coords = np.concatenate((coords_gas, coords_halo, coords_disk, coords_bulge))
+    vels, phi_grid = set_velocities(coords) 
     coords = np.array(coords, order='C')
     coords.shape = (1, -1) # Linearizing the array.
     vels = np.array(vels, order='C')
     vels.shape = (1, -1)
-    return [coords[0], vels[0]]
+    U = set_temperatures(coords_gas, phi_grid) 
+    rho = set_densities(coords_gas)
+    return [coords[0], vels[0], U, rho]
 
 
 def dehnen_inverse_cumulative(Mc, M, a, core):
     if(core):
         return ((a * (Mc**(2/3.)*M**(4/3.) + Mc*M + Mc**(4/3.)*M**(2/3.))) /
-                   (Mc**(1/3.) * M**(2/3.) * (M-Mc)))
+                (Mc**(1/3.) * M**(2/3.) * (M-Mc)))
     else:
         return (a * ((Mc*M)**0.5 + Mc)) / (M-Mc)
 
@@ -78,8 +84,8 @@ def halo_density(r):
         return M_halo/(2*pi) * a_halo/(r*(r+a_halo)**3)
 
 
-def disk_density(rho, z):
-    cte = M_disk/(4*pi*z0*Rd**2)
+def disk_density(rho, z, M):
+    cte = M/(4*pi*z0*Rd**2)
     return cte * (1/cosh(z/z0))**2 * exp(-rho/Rd)
  
 
@@ -117,14 +123,14 @@ def set_bulge_positions():
     return coords
 
 
-def set_disk_positions():
+def set_disk_positions(N):
     # TODO: restrict the maximum radius and height
-    radii = np.zeros(N_disk)
-    sample = nprand.sample(N_disk)
+    radii = np.zeros(N)
+    sample = nprand.sample(N)
     for i, s in enumerate(sample):
         radii[i] = disk_radial_inverse_cumulative(s)
-    zs = disk_height_inverse_cumulative(nprand.sample(N_disk))
-    phis = 2 * pi * nprand.sample(N_disk)
+    zs = disk_height_inverse_cumulative(nprand.sample(N))
+    phis = 2 * pi * nprand.sample(N)
     xs = radii * cos(phis)
     ys = radii * sin(phis)
     coords = np.column_stack((xs, ys, zs))
@@ -153,7 +159,7 @@ def interpolate(value, axis):
 
 
 def set_velocities(coords):
-    N_rho = Nz = 100
+    N_rho = Nz = 5
     rho_max = 200 * a_halo
     z_max = 2000 * a_halo # This has to go far so I can estimate the integral.
     rho_axis = np.logspace(log10(0.1), log10(rho_max), N_rho)
@@ -167,6 +173,8 @@ def set_velocities(coords):
             r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
             phi_grid[i][j] += dehnen_potential(r, M_halo, a_halo, halo_core)
             phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j], M_disk, Rd, z0)
+            #TODO: optimize
+            phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j], M_gas, Rd, z0)
             phi_grid[i][j] += dehnen_potential(r, M_bulge, a_bulge, bulge_core)
 
     # The [0], [1] and [2] components of this grid will refer to the halo,
@@ -182,7 +190,7 @@ def set_velocities(coords):
 
             # Filling the integrand array.
             ys[0][i][j] = halo_density(r) * dphi/dz 
-            ys[1][i][j] = disk_density(rho_axis[i], z_axis[j]) * dphi/dz
+            ys[1][i][j] = disk_density(rho_axis[i], z_axis[j], M_disk) * dphi/dz
             ys[2][i][j] = bulge_density(r) * dphi/dz 
         ys[0][i][0] = ys[0][i][1]
         ys[1][i][0] = ys[1][i][1]
@@ -190,7 +198,7 @@ def set_velocities(coords):
         for j in range(0, Nz-1):
             r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
             sz_grid[0][i][j] = 1/halo_density(r) * np.trapz(ys[0][i][j:], z_axis[j:])
-            sz_grid[1][i][j] = 1/disk_density(rho_axis[i], z_axis[j]) * np.trapz(ys[1][i][j:], z_axis[j:])
+            sz_grid[1][i][j] = 1/disk_density(rho_axis[i], z_axis[j], M_disk) * np.trapz(ys[1][i][j:], z_axis[j:])
             sz_grid[2][i][j] = 1/bulge_density(r) * np.trapz(ys[2][i][j:], z_axis[j:])
         sz_grid[0][i][Nz-1] = sz_grid[0][i][Nz-2]
         sz_grid[1][i][Nz-1] = sz_grid[1][i][Nz-2]
@@ -239,13 +247,15 @@ def set_velocities(coords):
             phi = 2 * pi - arctan(-y/x)
         bestz = interpolate(z, z_axis)
         bestr = interpolate(rho, rho_axis)
-        if(i < N_halo):
+        if(i < N_gas):
+            vz = vr = vphi = 0
+        elif(i >= N_gas and i < N_gas+N_halo):
             sigmaz = sz_grid[0][bestr][bestz]
             sigmap = sphi_grid[0][bestr][bestz]
             vz = nprand.normal(scale=sigmaz**0.5)
             vr = nprand.normal(scale=sigmaz**0.5)
             vphi = nprand.normal(scale=sigmap**0.5)
-        elif(i >= N_halo and i < N_halo+N_disk):
+        elif(i >= N_gas+N_halo and i < N_gas+N_halo+N_disk):
             if(bestz == 0):
                 bestz += 1
             if(bestr == 0):
@@ -273,22 +283,71 @@ def set_velocities(coords):
         vels[i][0] = vr*cos(phi) - vphi*sin(phi)
         vels[i][1] = vr*sin(phi) + vphi*cos(phi)
         vels[i][2] = vz
-    return vels
+    return vels, phi_grid
  
+
+def set_densities(coords_gas):
+    rhos = np.zeros(N_gas)
+    for i, part in enumerate(coords_gas):
+        rho = (part[0]**2 + part[1]**2)**0.5
+        z = abs(part[2])
+        rhos[i] = disk_density(rho, z, M_gas)
+    return rhos
+
+
+def set_temperatures(coords_gas, phi_grid):
+    MP_OVER_KB = 121.148
+    HYDROGEN_MASSFRAC = 0.76
+    meanweight_n = 4.0 / (1 + 3 * HYDROGEN_MASSFRAC)
+    meanweight_i = 4.0 / (3 + 5 * HYDROGEN_MASSFRAC)
+
+    T = np.zeros(N_gas)
+    N_rho, Nz = len(phi_grid), len(phi_grid[0])
+    rho_max = 200 * a_halo
+    z_max = 2000 * a_halo
+    rho_axis = np.logspace(log10(0.1), log10(rho_max), N_rho)
+    z_axis = np.logspace(log10(0.1), log10(z_max), Nz)
+    ys = np.zeros(Nz)
+    for i, part in enumerate(coords_gas):
+        rho = (part[0]**2 + part[1]**2)**0.5
+        z = abs(part[2])
+        bestz = interpolate(z, z_axis)
+        bestr = interpolate(rho, rho_axis)
+        for j in range(bestz, Nz-1):
+            dphi = phi_grid[bestr][j+1] - phi_grid[bestr][j]
+            dz = z_axis[j+1] - z_axis[j]
+            ys[j] = disk_density(rho, z_axis[j], M_gas) * dphi/dz
+        ys[Nz-1] = ys[Nz-2]
+        result = (np.trapz(ys[bestz:], z_axis[bestz:]) /
+                  disk_density(rho, z, M_gas))
+        temp_i = MP_OVER_KB * meanweight_i * result
+        temp_n = MP_OVER_KB * meanweight_n * result
+        if(temp_i > 1.0e4):
+            T[i] = temp_to_internal_energy(temp_i)
+        else:
+            T[i] = temp_to_internal_energy(temp_n)
+    return T
+
+
 
 def write_input_file(galaxy_data):
     coords = galaxy_data[0]
     vels = galaxy_data[1]
+    U = galaxy_data[2]
+    rho = galaxy_data[3]
+    m_gas = np.empty(N_gas)
+    m_gas.fill(M_gas/N_gas)
     m_halo = np.empty(N_halo)
     m_halo.fill(M_halo/N_halo)
     m_disk = np.empty(N_disk)
     m_disk.fill(M_disk/N_disk)
     m_bulge = np.empty(N_bulge)
     m_bulge.fill(M_bulge/N_bulge)
-    masses = np.concatenate((m_halo, m_disk, m_bulge))
+    masses = np.concatenate((m_gas, m_halo, m_disk, m_bulge))
     ids = np.arange(1, N_total+1, 1)
-    write_snapshot(n_part=[0, N_halo, N_disk, N_bulge, 0, 0], from_text=False,
-                    data_list=[coords, vels, ids, masses])
+    smooths = np.zeros(N_gas)
+    write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0], from_text=False,
+                   data_list=[coords, vels, ids, masses, U, rho, smooths])
 
 
 if __name__ == '__main__':
