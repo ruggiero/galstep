@@ -33,7 +33,7 @@ def init():
     global N_halo, N_disk, N_bulge, N_gas
     global a_halo, a_bulge, Rd, z0
     global N_total, M_total
-
+    global phi_grid, rho_axis, z_axis, rho_max, z_max, N_rho, Nz
     if not (path.isfile("header.txt") and path.isfile("galaxy_param.txt")):
         print "header.txt or galaxy_param.txt missing."
         exit(0)
@@ -44,6 +44,13 @@ def init():
     a_halo, a_bulge, Rd, z0 = (float(i[0]) for i in vars_[6:10])
     M_total = M_disk + M_bulge + M_halo + M_gas
     N_total = N_disk + N_bulge + N_halo + N_gas
+    N_rho = Nz = 100
+    phi_grid = np.zeros((N_rho, Nz))
+    rho_max = 200 * a_halo
+    # This has to go far so I can estimate the integrals below.
+    z_max = 2000 * a_halo 
+    rho_axis = np.logspace(log10(0.1), log10(rho_max), N_rho)
+    z_axis = np.logspace(log10(0.1), log10(z_max), Nz)
 
 
 def generate_galaxy():
@@ -52,12 +59,12 @@ def generate_galaxy():
     coords_gas = set_disk_positions(N_gas)
     coords_bulge = set_bulge_positions()
     coords = np.concatenate((coords_gas, coords_halo, coords_disk, coords_bulge))
-    vels, phi_grid = set_velocities(coords) 
+    U, T_cl_grid = set_temperatures(coords_gas, phi_grid) 
+    vels = set_velocities(coords, T_cl_grid) 
     coords = np.array(coords, order='C')
     coords.shape = (1, -1) # Linearizing the array.
     vels = np.array(vels, order='C')
     vels.shape = (1, -1)
-    U = set_temperatures(coords_gas, phi_grid) 
     rho = set_densities(coords_gas)
     return [coords[0], vels[0], U, rho]
 
@@ -158,13 +165,7 @@ def interpolate(value, axis):
         return index
 
 
-def set_velocities(coords):
-    N_rho = Nz = 5
-    rho_max = 200 * a_halo
-    z_max = 2000 * a_halo # This has to go far so I can estimate the integral.
-    rho_axis = np.logspace(log10(0.1), log10(rho_max), N_rho)
-    z_axis = np.logspace(log10(0.1), log10(z_max), Nz)
-    phi_grid = np.zeros((N_rho, Nz))
+def set_velocities(coords, T_cl_grid):
 
     # Filling the potential grid
     for i in range(N_rho):
@@ -248,7 +249,18 @@ def set_velocities(coords):
         bestz = interpolate(z, z_axis)
         bestr = interpolate(rho, rho_axis)
         if(i < N_gas):
-            vz = vr = vphi = 0
+            if(bestz not in vphis):
+                ds = np.zeros(N_rho)
+                for j in range(1, N_rho):
+                    dphi = phi_grid[j][bestz]-phi_grid[j-1][bestz]
+                    drho = rho_axis[j]-rho_axis[j-1]
+                    ds[j] = dphi/drho
+                ds[0] = ds[1]
+                vphis[bestz] = interp1d(rho_axis, ds, kind='cubic')
+            dP = (disk_density(rho_axis[bestr+1], z, M_gas)*T_cl_grid[bestr+1][bestz] - disk_density(rho_axis[bestr], z, M_gas)*T_cl_grid[bestr][bestz])
+            drho = rho_axis[bestr+1] - rho_axis[bestr]
+            vphi = (rho * (vphis[bestz](rho) + 1/disk_density(rho_axis[bestr], z, M_gas) * dP/drho))**0.5
+            vz = vr = 0
         elif(i >= N_gas and i < N_gas+N_halo):
             sigmaz = sz_grid[0][bestr][bestz]
             sigmap = sphi_grid[0][bestr][bestz]
@@ -283,7 +295,7 @@ def set_velocities(coords):
         vels[i][0] = vr*cos(phi) - vphi*sin(phi)
         vels[i][1] = vr*sin(phi) + vphi*cos(phi)
         vels[i][2] = vz
-    return vels, phi_grid
+    return vels
  
 
 def set_densities(coords_gas):
@@ -296,37 +308,39 @@ def set_densities(coords_gas):
 
 
 def set_temperatures(coords_gas, phi_grid):
+    #global phi_grid, rho_axis, z_axis, rho_max, z_max, N_rho, Nz
+    T_grid = np.zeros((N_rho, Nz))
+    U = np.zeros(N_gas)
+    # Constantless temperature, will be used in the circular
+    # velocity determination for the gas.
+    T_cl_grid = np.zeros((N_rho, Nz)) 
     MP_OVER_KB = 121.148
     HYDROGEN_MASSFRAC = 0.76
     meanweight_n = 4.0 / (1 + 3 * HYDROGEN_MASSFRAC)
     meanweight_i = 4.0 / (3 + 5 * HYDROGEN_MASSFRAC)
-
-    T = np.zeros(N_gas)
-    N_rho, Nz = len(phi_grid), len(phi_grid[0])
-    rho_max = 200 * a_halo
-    z_max = 2000 * a_halo
-    rho_axis = np.logspace(log10(0.1), log10(rho_max), N_rho)
-    z_axis = np.logspace(log10(0.1), log10(z_max), Nz)
-    ys = np.zeros(Nz)
+    ys = np.zeros((N_rho, Nz)) # Integrand array.
+    for i in range(N_rho):
+        for j in range(1, Nz):
+            dphi = phi_grid[i][j] - phi_grid[i][j-1]
+            dz = z_axis[j] - z_axis[j-1]
+            ys[i][j] = disk_density(rho_axis[i], z_axis[j], M_gas) * dphi/dz
+        ys[i][0] = ys[i][1]
+        result = (np.trapz(ys[i][j:], z_axis[j:]) /
+                  disk_density(rho_axis[i], z_axis[j], M_gas))
+        temp_i = MP_OVER_KB * meanweight_i * result
+        temp_n = MP_OVER_KB * meanweight_n * result
+        if(temp_i > 1.0e4):
+            T_grid[i][j] = temp_to_internal_energy(temp_i)
+        else:
+            T_grid[i][j] = temp_to_internal_energy(temp_n)
+        T_cl_grid[i][j] = result
     for i, part in enumerate(coords_gas):
         rho = (part[0]**2 + part[1]**2)**0.5
         z = abs(part[2])
         bestz = interpolate(z, z_axis)
         bestr = interpolate(rho, rho_axis)
-        for j in range(bestz, Nz-1):
-            dphi = phi_grid[bestr][j+1] - phi_grid[bestr][j]
-            dz = z_axis[j+1] - z_axis[j]
-            ys[j] = disk_density(rho, z_axis[j], M_gas) * dphi/dz
-        ys[Nz-1] = ys[Nz-2]
-        result = (np.trapz(ys[bestz:], z_axis[bestz:]) /
-                  disk_density(rho, z, M_gas))
-        temp_i = MP_OVER_KB * meanweight_i * result
-        temp_n = MP_OVER_KB * meanweight_n * result
-        if(temp_i > 1.0e4):
-            T[i] = temp_to_internal_energy(temp_i)
-        else:
-            T[i] = temp_to_internal_energy(temp_n)
-    return T
+        U[i] = T_grid[bestr][bestz]
+    return U, T_cl_grid
 
 
 
