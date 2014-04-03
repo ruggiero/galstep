@@ -7,6 +7,9 @@
 # M_bulge
 0.1
 
+# M_gas
+1
+
 # N_halo
 24000
 
@@ -15,6 +18,9 @@
 
 # N_bulge
 300
+
+# N_gas
+1000
 
 # a_halo
 50
