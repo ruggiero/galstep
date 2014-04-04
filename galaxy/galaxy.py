@@ -44,7 +44,7 @@ def init():
     a_halo, a_bulge, Rd, z0 = (float(i[0]) for i in vars_[6:10])
     M_total = M_disk + M_bulge + M_halo + M_gas
     N_total = N_disk + N_bulge + N_halo + N_gas
-    N_rho = Nz = 100
+    N_rho = Nz = 110
     phi_grid = np.zeros((N_rho, Nz))
     rho_max = 200 * a_halo
     # This has to go far so I can estimate the integrals below.
@@ -59,7 +59,8 @@ def generate_galaxy():
     coords_gas = set_disk_positions(N_gas)
     coords_bulge = set_bulge_positions()
     coords = np.concatenate((coords_gas, coords_halo, coords_disk, coords_bulge))
-    U, T_cl_grid = set_temperatures(coords_gas, phi_grid) 
+    fill_potential_grid()
+    U, T_cl_grid = set_temperatures(coords_gas) 
     vels = set_velocities(coords, T_cl_grid) 
     coords = np.array(coords, order='C')
     coords.shape = (1, -1) # Linearizing the array.
@@ -165,9 +166,7 @@ def interpolate(value, axis):
         return index
 
 
-def set_velocities(coords, T_cl_grid):
-
-    # Filling the potential grid
+def fill_potential_grid():
     for i in range(N_rho):
         print "Potential calculation, %d of %d..." % (i, N_rho)
         for j in range(Nz):
@@ -175,6 +174,9 @@ def set_velocities(coords, T_cl_grid):
             phi_grid[i][j] += dehnen_potential(r, M_halo, a_halo, halo_core)
             phi_grid[i][j] += (M_disk + M_gas) * phi_disk(rho_axis[i], z_axis[j], 1, Rd, z0)
             phi_grid[i][j] += dehnen_potential(r, M_bulge, a_bulge, bulge_core)
+
+
+def set_velocities(coords, T_cl_grid):
 
     # The [0], [1] and [2] components of this grid will refer to the halo,
     # disk and bulge, respectively. The calculation being performed here
@@ -305,7 +307,7 @@ def set_densities(coords_gas):
     return rhos
 
 
-def set_temperatures(coords_gas, phi_grid):
+def set_temperatures(coords_gas):
     #global phi_grid, rho_axis, z_axis, rho_max, z_max, N_rho, Nz
     T_grid = np.zeros((N_rho, Nz))
     U = np.zeros(N_gas)
@@ -323,15 +325,19 @@ def set_temperatures(coords_gas, phi_grid):
             dz = z_axis[j] - z_axis[j-1]
             ys[i][j] = disk_density(rho_axis[i], z_axis[j], M_gas) * dphi/dz
         ys[i][0] = ys[i][1]
-        result = (np.trapz(ys[i][j:], z_axis[j:]) /
-                  disk_density(rho_axis[i], z_axis[j], M_gas))
-        temp_i = MP_OVER_KB * meanweight_i * result
-        temp_n = MP_OVER_KB * meanweight_n * result
-        if(temp_i > 1.0e4):
-            T_grid[i][j] = temp_to_internal_energy(temp_i)
-        else:
-            T_grid[i][j] = temp_to_internal_energy(temp_n)
-        T_cl_grid[i][j] = result
+#        result = (np.trapz(ys[i][j:], z_axis[j:]) /
+#                  disk_density(rho_axis[i], z_axis[j], M_gas))
+	for j in range(0, Nz-1):
+            result = np.trapz(ys[i][j:], z_axis[j:])
+            temp_i = MP_OVER_KB * meanweight_i * result
+            temp_n = MP_OVER_KB * meanweight_n * result
+            if(temp_i > 1.0e4):
+                T_grid[i][j] = temp_to_internal_energy(temp_i)
+            else:
+                T_grid[i][j] = temp_to_internal_energy(temp_n)
+            T_cl_grid[i][j] = result
+        T_grid[i][-1] = T_grid[i][-2]
+        T_cl_grid[i][-1] = T_cl_grid[i][-2]
     for i, part in enumerate(coords_gas):
         rho = (part[0]**2 + part[1]**2)**0.5
         z = abs(part[2])
