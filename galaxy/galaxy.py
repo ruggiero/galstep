@@ -325,10 +325,9 @@ def set_temperatures(coords_gas):
             dz = z_axis[j] - z_axis[j-1]
             ys[i][j] = disk_density(rho_axis[i], z_axis[j], M_gas) * dphi/dz
         ys[i][0] = ys[i][1]
-#        result = (np.trapz(ys[i][j:], z_axis[j:]) /
-#                  disk_density(rho_axis[i], z_axis[j], M_gas))
 	for j in range(0, Nz-1):
-            result = np.trapz(ys[i][j:], z_axis[j:])
+            result = (np.trapz(ys[i][j:], z_axis[j:]) /
+                      disk_density(rho_axis[i], z_axis[j], M_gas))
             temp_i = MP_OVER_KB * meanweight_i * result
             temp_n = MP_OVER_KB * meanweight_n * result
             if(temp_i > 1.0e4):
