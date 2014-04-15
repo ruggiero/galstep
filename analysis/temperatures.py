@@ -1,5 +1,5 @@
 '''
-Standalone execution: ./snapread.py SNAPSHOT
+Execution: python temperatures.py SNAPSHOT | tee outfile.txt
 '''
 
 import sys
