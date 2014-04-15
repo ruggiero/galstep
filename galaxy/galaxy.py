@@ -47,7 +47,7 @@ def init():
     a_halo, a_bulge, Rd, z0 = (float(i[0]) for i in vars_[8:12])
     M_total = M_disk + M_bulge + M_halo + M_gas
     N_total = N_disk + N_bulge + N_halo + N_gas
-    N_rho = Nz = 2**7 # Make sure N_CORES is a factor of this number!
+    N_rho = Nz = 2**8 # Make sure N_CORES is a factor of this number!
     phi_grid = np.zeros((N_rho, Nz))
     rho_max = 200 * a_halo
     # This has to go far so I can estimate the integrals below.
@@ -343,11 +343,11 @@ def set_temperatures(coords_gas):
         for j in range(1, Nz):
             dphi = phi_grid[i][j] - phi_grid[i][j-1]
             dz = z_axis[j] - z_axis[j-1]
-            ys[i][j] = disk_density(rho_axis[i], z_axis[j], M_gas) * dphi/dz
+            ys[i][j] = disk_density(rho_axis[i], z_axis[j], M_gas, z0/7) * dphi/dz
         ys[i][0] = ys[i][1]
         for j in range(0, Nz-1):
             result = (np.trapz(ys[i][j:], z_axis[j:]) /
-                      disk_density(rho_axis[i], z_axis[j], M_gas))
+                      disk_density(rho_axis[i], z_axis[j], M_gas, z0/7))
             temp_i = MP_OVER_KB * meanweight_i * result
             temp_n = MP_OVER_KB * meanweight_n * result
             if(temp_i > 1.0e4):
