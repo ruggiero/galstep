@@ -10,16 +10,19 @@ from numpy import cos, sin, pi, arccos, log10, exp, arctan, cosh
 from scipy.optimize import brentq
 from scipy.interpolate import interp1d
 from bisect import bisect_left
+from multiprocessing import Process, Array
+
 
 from optimized_functions import phi_disk
 from snapwrite import process_input, write_snapshot
 syspath.append(path.join(path.dirname(__file__), '..', 'misc'))
-from units import temp_to_internal_energy
+from units import temp_to_internal_energy, internal_energy_to_temp
 
 
 halo_core = False
 bulge_core = False
 G = 43007.1
+N_CORES = 2
 
 
 def main():
@@ -41,25 +44,26 @@ def init():
     vars_ = process_input("galaxy_param.txt")
     M_halo, M_disk, M_bulge, M_gas = (float(i[0]) for i in vars_[0:4])
     N_halo, N_disk, N_bulge, N_gas = (float(i[0]) for i in vars_[4:8])
-    a_halo, a_bulge, Rd, z0 = (float(i[0]) for i in vars_[6:10])
+    a_halo, a_bulge, Rd, z0 = (float(i[0]) for i in vars_[8:12])
     M_total = M_disk + M_bulge + M_halo + M_gas
     N_total = N_disk + N_bulge + N_halo + N_gas
-    N_rho = Nz = 110
+    N_rho = Nz = 2**7 # Make sure N_CORES is a factor of this number!
     phi_grid = np.zeros((N_rho, Nz))
     rho_max = 200 * a_halo
     # This has to go far so I can estimate the integrals below.
     z_max = 2000 * a_halo 
-    rho_axis = np.logspace(log10(0.1), log10(rho_max), N_rho)
-    z_axis = np.logspace(log10(0.1), log10(z_max), Nz)
+    rho_axis = np.logspace(-2, log10(rho_max), N_rho)
+    z_axis = np.logspace(-2, log10(z_max), Nz)
 
 
 def generate_galaxy():
     coords_halo = set_halo_positions()
-    coords_disk = set_disk_positions(N_disk)
-    coords_gas = set_disk_positions(N_gas)
+    coords_disk = set_disk_positions(N_disk, z0)
+    coords_gas = set_disk_positions(N_gas, z0/7)
     coords_bulge = set_bulge_positions()
     coords = np.concatenate((coords_gas, coords_halo, coords_disk, coords_bulge))
     fill_potential_grid()
+    print "haeuhuaehu"
     U, T_cl_grid = set_temperatures(coords_gas) 
     vels = set_velocities(coords, T_cl_grid) 
     coords = np.array(coords, order='C')
@@ -92,7 +96,7 @@ def halo_density(r):
         return M_halo/(2*pi) * a_halo/(r*(r+a_halo)**3)
 
 
-def disk_density(rho, z, M):
+def disk_density(rho, z, M, z0):
     cte = M/(4*pi*z0*Rd**2)
     return cte * (1/cosh(z/z0))**2 * exp(-rho/Rd)
  
@@ -131,13 +135,13 @@ def set_bulge_positions():
     return coords
 
 
-def set_disk_positions(N):
+def set_disk_positions(N, z0):
     # TODO: restrict the maximum radius and height
     radii = np.zeros(N)
     sample = nprand.sample(N)
     for i, s in enumerate(sample):
         radii[i] = disk_radial_inverse_cumulative(s)
-    zs = disk_height_inverse_cumulative(nprand.sample(N))
+    zs = disk_height_inverse_cumulative(nprand.sample(N), z0)
     phis = 2 * pi * nprand.sample(N)
     xs = radii * cos(phis)
     ys = radii * sin(phis)
@@ -154,7 +158,7 @@ def disk_radial_inverse_cumulative(frac):
     return brentq(lambda r: disk_radial_cumulative(r) - frac, 0, 1.0e10)
 
 
-def disk_height_inverse_cumulative(frac):
+def disk_height_inverse_cumulative(frac, z0):
     return 0.5 * z0 * np.log(frac/(1-frac))
 
 
@@ -167,13 +171,28 @@ def interpolate(value, axis):
 
 
 def fill_potential_grid():
+    ps = []
+    def loop(n_loop, N_CORES):
+        for i in range(n_loop*N_rho/N_CORES, (1+n_loop)*N_rho/N_CORES):
+            print i
+            #if(n_loop == 0):
+            #    print "Potential calculation, %d of %d..." % (2*i, N_rho)
+            for j in range(Nz):
+                r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
+                shared_phi_grid[i][j] += dehnen_potential(r, M_halo, a_halo, halo_core)
+                shared_phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j], M_disk, Rd, z0)
+                shared_phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j], M_gas, Rd, z0/7)
+                shared_phi_grid[i][j] += dehnen_potential(r, M_bulge, a_bulge, bulge_core)
+
+    shared_phi_grid = [Array('f', phi_grid[i]) for i in range(len(phi_grid))]
+    proc=[Process(target=loop, args=(n, N_CORES)) for n in range(N_CORES)]
+    [p.start() for p in proc]
+    [p.join() for p in proc]
     for i in range(N_rho):
-        print "Potential calculation, %d of %d..." % (i, N_rho)
         for j in range(Nz):
-            r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
-            phi_grid[i][j] += dehnen_potential(r, M_halo, a_halo, halo_core)
-            phi_grid[i][j] += (M_disk + M_gas) * phi_disk(rho_axis[i], z_axis[j], 1, Rd, z0)
-            phi_grid[i][j] += dehnen_potential(r, M_bulge, a_bulge, bulge_core)
+            phi_grid[i][j] = shared_phi_grid[i][j]
+    np.savetxt('saida.out', phi_grid, fmt='%1.2e')
+
 
 
 def set_velocities(coords, T_cl_grid):
@@ -191,7 +210,7 @@ def set_velocities(coords, T_cl_grid):
 
             # Filling the integrand array.
             ys[0][i][j] = halo_density(r) * dphi/dz 
-            ys[1][i][j] = disk_density(rho_axis[i], z_axis[j], M_disk) * dphi/dz
+            ys[1][i][j] = disk_density(rho_axis[i], z_axis[j], M_disk, z0) * dphi/dz
             ys[2][i][j] = bulge_density(r) * dphi/dz 
         ys[0][i][0] = ys[0][i][1]
         ys[1][i][0] = ys[1][i][1]
@@ -199,7 +218,7 @@ def set_velocities(coords, T_cl_grid):
         for j in range(0, Nz-1):
             r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
             sz_grid[0][i][j] = 1/halo_density(r) * np.trapz(ys[0][i][j:], z_axis[j:])
-            sz_grid[1][i][j] = 1/disk_density(rho_axis[i], z_axis[j], M_disk) * np.trapz(ys[1][i][j:], z_axis[j:])
+            sz_grid[1][i][j] = 1/disk_density(rho_axis[i], z_axis[j], M_disk, z0) * np.trapz(ys[1][i][j:], z_axis[j:])
             sz_grid[2][i][j] = 1/bulge_density(r) * np.trapz(ys[2][i][j:], z_axis[j:])
         sz_grid[0][i][Nz-1] = sz_grid[0][i][Nz-2]
         sz_grid[1][i][Nz-1] = sz_grid[1][i][Nz-2]
@@ -256,10 +275,12 @@ def set_velocities(coords, T_cl_grid):
                     drho = rho_axis[j]-rho_axis[j-1]
                     ds[j] = dphi/drho
                 ds[0] = ds[1]
+                print ds
                 vphis[bestz] = interp1d(rho_axis, ds, kind='cubic')
-            dP = (disk_density(rho_axis[bestr+1], z, M_gas)*T_cl_grid[bestr+1][bestz] - disk_density(rho_axis[bestr], z, M_gas)*T_cl_grid[bestr][bestz])
-            drho = rho_axis[bestr+1] - rho_axis[bestr]
-            vphi = (rho * (vphis[bestz](rho) + 1/disk_density(rho_axis[bestr], z, M_gas) * dP/drho))**0.5
+            dP = (disk_density(rho_axis[bestr], z, M_gas, z0/7)*T_cl_grid[bestr][bestz] - disk_density(rho_axis[bestr-1], z, M_gas, z0/7)*T_cl_grid[bestr-1][bestz])
+            drho = rho_axis[bestr] - rho_axis[bestr-1]
+            vphi2 = rho * (vphis[bestz](rho) + 1/disk_density(rho, z, M_gas, z0/7) * dP/drho)
+            vphi = abs(vphi2)**0.5
             vz = vr = 0
         elif(i >= N_gas and i < N_gas+N_halo):
             sigmaz = sz_grid[0][bestr][bestz]
@@ -303,12 +324,11 @@ def set_densities(coords_gas):
     for i, part in enumerate(coords_gas):
         rho = (part[0]**2 + part[1]**2)**0.5
         z = abs(part[2])
-        rhos[i] = disk_density(rho, z, M_gas)
+        rhos[i] = disk_density(rho, z, M_gas, z0/7)
     return rhos
 
 
 def set_temperatures(coords_gas):
-    #global phi_grid, rho_axis, z_axis, rho_max, z_max, N_rho, Nz
     T_grid = np.zeros((N_rho, Nz))
     U = np.zeros(N_gas)
     # Constantless temperature, will be used in the circular
@@ -325,7 +345,7 @@ def set_temperatures(coords_gas):
             dz = z_axis[j] - z_axis[j-1]
             ys[i][j] = disk_density(rho_axis[i], z_axis[j], M_gas) * dphi/dz
         ys[i][0] = ys[i][1]
-	for j in range(0, Nz-1):
+        for j in range(0, Nz-1):
             result = (np.trapz(ys[i][j:], z_axis[j:]) /
                       disk_density(rho_axis[i], z_axis[j], M_gas))
             temp_i = MP_OVER_KB * meanweight_i * result
@@ -343,6 +363,8 @@ def set_temperatures(coords_gas):
         bestz = interpolate(z, z_axis)
         bestr = interpolate(rho, rho_axis)
         U[i] = T_grid[bestr][bestz]
+    #U.fill(temp_to_internal_energy(1000))
+    #T_cl_grid.fill(1000 / MP_OVER_KB / meanweight_n)
     return U, T_cl_grid
 
 
