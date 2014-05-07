@@ -11,7 +11,7 @@ from scipy.optimize import brentq
 from scipy.interpolate import interp1d
 from bisect import bisect_left
 from multiprocessing import Process, Array
-
+from argparse import ArgumentParser as parser
 
 from optimized_functions import phi_disk
 from snapwrite import process_input, write_snapshot
@@ -19,10 +19,7 @@ syspath.append(path.join(path.dirname(__file__), '..', 'misc'))
 from units import temp_to_internal_energy, internal_energy_to_temp
 
 
-halo_core = False
-bulge_core = False
 G = 43007.1
-N_CORES = 2
 
 
 def main():
@@ -37,6 +34,29 @@ def init():
     global a_halo, a_bulge, Rd, z0
     global N_total, M_total
     global phi_grid, rho_axis, z_axis, rho_max, z_max, N_rho, Nz
+    global halo_core, bulge_core, N_CORES, force_yes
+    flags = parser(description="Generates an initial conditions file\
+                                for a galaxy simulation with halo, stellar\
+                                disk, gaseous disk and bulge components.")
+    flags.add_argument('--halo-core', help='Sets the density profile for the\
+                       halo to have a core.', action='store_true')
+    flags.add_argument('--bulge-core', help='The same, but for the bulge.',
+                       action='store_true')
+    flags.add_argument('-cores', help='The number of cores to use during the\
+                       potential canculation. Default is 1. Make sure this\
+                       number is a power of 2.', default=1)
+    flags.add_argument('--force-yes', help='Don\'t ask if you want to use the\
+                        existing potential_data.txt file. Might be useful to\
+                        run the script from another script.',
+                        action='store_true')
+    flags.add_argument('-o', help='The name of the output file.',
+                       metavar="init.dat", default="init.dat")
+    args = flags.parse_args()
+    halo_core = args.halo_core
+    bulge_core = args.bulge_core
+    N_CORES = args.cores
+    force_yes = args.force_yes
+
     if not (path.isfile("header.txt") and path.isfile("galaxy_param.txt")):
         print "header.txt or galaxy_param.txt missing."
         exit(0)
@@ -47,7 +67,7 @@ def init():
     a_halo, a_bulge, Rd, z0 = (float(i[0]) for i in vars_[8:12])
     M_total = M_disk + M_bulge + M_halo + M_gas
     N_total = N_disk + N_bulge + N_halo + N_gas
-    N_rho = Nz = 2**8 # Make sure N_CORES is a factor of this number!
+    N_rho = Nz = 2**7 # Make sure N_CORES is a factor of this number!
     phi_grid = np.zeros((N_rho, Nz))
     rho_max = 200 * a_halo
     # This has to go far so I can estimate the integrals below.
@@ -61,9 +81,25 @@ def generate_galaxy():
     coords_disk = set_disk_positions(N_disk, z0)
     coords_gas = set_disk_positions(N_gas, z0/7)
     coords_bulge = set_bulge_positions()
-    coords = np.concatenate((coords_gas, coords_halo, coords_disk, coords_bulge))
-    fill_potential_grid()
-    print "haeuhuaehu"
+    coords = np.concatenate((coords_gas, coords_halo, coords_disk,
+                             coords_bulge))
+    if path.isfile('potential_data.txt'):
+        if not force_yes:
+            print ("Use existing potential tabulation in potential_data.txt? "+
+                   "Make sure it\nrefers to the currently set parameters. (y/n)")
+            ans = raw_input()
+            while ans not in "yn":
+                print "Please give a proper answer. (y/n)"
+                ans = raw_input()
+        else: ans = "y"
+        if ans == "y":
+            phi_grid = np.loadtxt('potential_data.txt')
+        else:
+            fill_potential_grid()
+            np.savetxt('potential_data.txt')
+    else:
+        fill_potential_grid()
+        np.savetxt('potential_data.txt')
     U, T_cl_grid = set_temperatures(coords_gas) 
     vels = set_velocities(coords, T_cl_grid) 
     coords = np.array(coords, order='C')
@@ -136,9 +172,9 @@ def set_bulge_positions():
 
 
 def set_disk_positions(N, z0):
-    # TODO: restrict the maximum radius and height
     radii = np.zeros(N)
-    sample = nprand.sample(N)
+    # The maximum radius is restricted to 21 kpc
+    sample = nprand.sample(N) * disk_radial_cumulative(21)
     for i, s in enumerate(sample):
         radii[i] = disk_radial_inverse_cumulative(s)
     zs = disk_height_inverse_cumulative(nprand.sample(N), z0)
@@ -172,31 +208,39 @@ def interpolate(value, axis):
 
 def fill_potential_grid():
     ps = []
+    print ("Filling potential grid. This takes a while, even after thorough\n"
+           "optimization.")
     def loop(n_loop, N_CORES):
         for i in range(n_loop*N_rho/N_CORES, (1+n_loop)*N_rho/N_CORES):
-            print i
-            #if(n_loop == 0):
-            #    print "Potential calculation, %d of %d..." % (2*i, N_rho)
+            print "%1.1f done at core %d" % (float(i) / (N_rho/N_CORES),
+                n_loop + 1)
             for j in range(Nz):
                 r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
-                shared_phi_grid[i][j] += dehnen_potential(r, M_halo, a_halo, halo_core)
-                shared_phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j], M_disk, Rd, z0)
-                shared_phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j], M_gas, Rd, z0/7)
-                shared_phi_grid[i][j] += dehnen_potential(r, M_bulge, a_bulge, bulge_core)
-
+                shared_phi_grid[i][j] += dehnen_potential(r, M_halo, a_halo,
+                    halo_core)
+                shared_phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j],
+                    M_disk, Rd, z0)
+                shared_phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j],
+                    M_gas, Rd, z0/7)
+                shared_phi_grid[i][j] += dehnen_potential(r, M_bulge, a_bulge,
+                    bulge_core)
     shared_phi_grid = [Array('f', phi_grid[i]) for i in range(len(phi_grid))]
     proc=[Process(target=loop, args=(n, N_CORES)) for n in range(N_CORES)]
-    [p.start() for p in proc]
-    [p.join() for p in proc]
+    try:
+        [p.start() for p in proc]
+        [p.join() for p in proc]
+    except KeyboardInterrupt:
+        [p.terminate() for p in proc]
+        [p.join() for p in proc]
+        print "\nProcess canceled..."
+        exit(0)
     for i in range(N_rho):
         for j in range(Nz):
             phi_grid[i][j] = shared_phi_grid[i][j]
     np.savetxt('saida.out', phi_grid, fmt='%1.2e')
 
 
-
 def set_velocities(coords, T_cl_grid):
-
     # The [0], [1] and [2] components of this grid will refer to the halo,
     # disk and bulge, respectively. The calculation being performed here
     # follows the prescription found in Springel & White, 1999.
@@ -277,9 +321,12 @@ def set_velocities(coords, T_cl_grid):
                 ds[0] = ds[1]
                 print ds
                 vphis[bestz] = interp1d(rho_axis, ds, kind='cubic')
-            dP = (disk_density(rho_axis[bestr], z, M_gas, z0/7)*T_cl_grid[bestr][bestz] - disk_density(rho_axis[bestr-1], z, M_gas, z0/7)*T_cl_grid[bestr-1][bestz])
+            dP = (disk_density(rho_axis[bestr], z, M_gas, z0/7)*
+                  T_cl_grid[bestr][bestz] - disk_density(rho_axis[bestr-1], 
+                  z, M_gas, z0/7)*T_cl_grid[bestr-1][bestz])
             drho = rho_axis[bestr] - rho_axis[bestr-1]
-            vphi2 = rho * (vphis[bestz](rho) + 1/disk_density(rho, z, M_gas, z0/7) * dP/drho)
+            vphi2 = rho * (vphis[bestz](rho) + 1/disk_density(rho, z, M_gas,
+                    z0/7) * dP/drho)
             vphi = abs(vphi2)**0.5
             vz = vr = 0
         elif(i >= N_gas and i < N_gas+N_halo):
@@ -343,7 +390,8 @@ def set_temperatures(coords_gas):
         for j in range(1, Nz):
             dphi = phi_grid[i][j] - phi_grid[i][j-1]
             dz = z_axis[j] - z_axis[j-1]
-            ys[i][j] = disk_density(rho_axis[i], z_axis[j], M_gas, z0/7) * dphi/dz
+            ys[i][j] = (disk_density(rho_axis[i], z_axis[j], M_gas, z0/7) *
+                        dphi/dz)
         ys[i][0] = ys[i][1]
         for j in range(0, Nz-1):
             result = (np.trapz(ys[i][j:], z_axis[j:]) /
@@ -368,7 +416,6 @@ def set_temperatures(coords_gas):
     return U, T_cl_grid
 
 
-
 def write_input_file(galaxy_data):
     coords = galaxy_data[0]
     vels = galaxy_data[1]
@@ -385,7 +432,8 @@ def write_input_file(galaxy_data):
     masses = np.concatenate((m_gas, m_halo, m_disk, m_bulge))
     ids = np.arange(1, N_total+1, 1)
     smooths = np.zeros(N_gas)
-    write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0], from_text=False,
+    write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
+                   from_text=False,
                    data_list=[coords, vels, ids, masses, U, rho, smooths])
 
 
