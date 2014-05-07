@@ -54,7 +54,7 @@ def init():
     args = flags.parse_args()
     halo_core = args.halo_core
     bulge_core = args.bulge_core
-    N_CORES = args.cores
+    N_CORES = int(args.cores)
     force_yes = args.force_yes
 
     if not (path.isfile("header.txt") and path.isfile("galaxy_param.txt")):
@@ -77,6 +77,7 @@ def init():
 
 
 def generate_galaxy():
+    print "Sampling the positions..."
     coords_halo = set_halo_positions()
     coords_disk = set_disk_positions(N_disk, z0)
     coords_gas = set_disk_positions(N_gas, z0/7)
