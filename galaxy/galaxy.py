@@ -83,10 +83,11 @@ def generate_galaxy():
     coords_bulge = set_bulge_positions()
     coords = np.concatenate((coords_gas, coords_halo, coords_disk,
                              coords_bulge))
+
     if path.isfile('potential_data.txt'):
         if not force_yes:
             print ("Use existing potential tabulation in potential_data.txt? "+
-                   "Make sure it\nrefers to the currently set parameters. (y/n)")
+                   "Make sure it\nrefers to the current parameters. (y/n)")
             ans = raw_input()
             while ans not in "yn":
                 print "Please give a proper answer. (y/n)"
