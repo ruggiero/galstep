@@ -98,10 +98,10 @@ def generate_galaxy():
             phi_grid = np.loadtxt('potential_data.txt')
         else:
             fill_potential_grid()
-            np.savetxt('potential_data.txt')
+            np.savetxt('potential_data.txt', phi_grid)
     else:
         fill_potential_grid()
-        np.savetxt('potential_data.txt')
+        np.savetxt('potential_data.txt', phi_grid)
     U, T_cl_grid = set_temperatures(coords_gas) 
     vels = set_velocities(coords, T_cl_grid) 
     coords = np.array(coords, order='C')
