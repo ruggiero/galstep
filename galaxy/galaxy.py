@@ -214,8 +214,8 @@ def fill_potential_grid():
            "optimization.")
     def loop(n_loop, N_CORES):
         for i in range(n_loop*N_rho/N_CORES, (1+n_loop)*N_rho/N_CORES):
-            print "%1.1f done at core %d" % (float(i) / (N_rho/N_CORES),
-                n_loop + 1)
+            print "%1.1f%% done at core %d" % (float(i-n_loop*N_rho/N_CORES) /
+                (N_rho/N_CORES)/0.01, n_loop + 1)
             for j in range(Nz):
                 r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
                 shared_phi_grid[i][j] += dehnen_potential(r, M_halo, a_halo,
