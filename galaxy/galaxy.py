@@ -78,6 +78,7 @@ def init():
 
 def generate_galaxy():
     global phi_grid
+    print "Setting positions..."
     coords_halo = set_halo_positions()
     coords_disk = set_disk_positions(N_disk, z0)
     coords_gas = set_disk_positions(N_gas, z0/7)
@@ -103,7 +104,9 @@ def generate_galaxy():
     else:
         fill_potential_grid()
         np.savetxt('potential_data.txt', phi_grid)
+    print "Setting temperatures..."
     U, T_cl_grid = set_temperatures(coords_gas) 
+    print "Setting velocities..."
     vels = set_velocities(coords, T_cl_grid) 
     coords = np.array(coords, order='C')
     coords.shape = (1, -1) # Linearizing the array.
