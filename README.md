@@ -36,6 +36,9 @@ be ready for execution.
       -o init.dat   The name of the output file.
 
 
+A sample potential data file is provided for the parameters file included.
+
+
 ## Author
 
     Rafael Ruggiero

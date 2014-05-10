@@ -1,6 +1,6 @@
 # Use: python galaxy.py [FILE]
 
-from os import path
+from os import path, remove
 from sys import exit
 from sys import path as syspath
 
@@ -44,7 +44,7 @@ def init():
                        action='store_true')
     flags.add_argument('-cores', help='The number of cores to use during the\
                        potential canculation. Default is 1. Make sure this\
-                       number is a power of 2.', default=1)
+                       number is a factor of N_rho and N_z.', default=1)
     flags.add_argument('--force-yes', help='Don\'t ask if you want to use the\
                         existing potential_data.txt file. Might be useful to\
                         run the script from another script.',
@@ -67,7 +67,7 @@ def init():
     a_halo, a_bulge, Rd, z0 = (float(i[0]) for i in vars_[8:12])
     M_total = M_disk + M_bulge + M_halo + M_gas
     N_total = N_disk + N_bulge + N_halo + N_gas
-    N_rho = Nz = 2**7 # Make sure N_CORES is a factor of this number!
+    N_rho = Nz = 280 # Make sure N_CORES is a factor of this number!
     phi_grid = np.zeros((N_rho, Nz))
     rho_max = 200 * a_halo
     # This has to go far so I can estimate the integrals below.
@@ -77,7 +77,7 @@ def init():
 
 
 def generate_galaxy():
-    print "Sampling the positions..."
+    global phi_grid
     coords_halo = set_halo_positions()
     coords_disk = set_disk_positions(N_disk, z0)
     coords_gas = set_disk_positions(N_gas, z0/7)
@@ -97,6 +97,7 @@ def generate_galaxy():
         if ans == "y":
             phi_grid = np.loadtxt('potential_data.txt')
         else:
+            remove('potential_data.txt')
             fill_potential_grid()
             np.savetxt('potential_data.txt', phi_grid)
     else:
@@ -215,7 +216,7 @@ def fill_potential_grid():
     def loop(n_loop, N_CORES):
         for i in range(n_loop*N_rho/N_CORES, (1+n_loop)*N_rho/N_CORES):
             print "%1.1f%% done at core %d" % (float(i-n_loop*N_rho/N_CORES) /
-                (N_rho/N_CORES)/0.01, n_loop + 1)
+                (N_rho/N_CORES) / 0.01, n_loop + 1)
             for j in range(Nz):
                 r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
                 shared_phi_grid[i][j] += dehnen_potential(r, M_halo, a_halo,
@@ -234,12 +235,11 @@ def fill_potential_grid():
     except KeyboardInterrupt:
         [p.terminate() for p in proc]
         [p.join() for p in proc]
-        print "\nProcess canceled..."
+        print "\nProcess canceled."
         exit(0)
     for i in range(N_rho):
         for j in range(Nz):
             phi_grid[i][j] = shared_phi_grid[i][j]
-    np.savetxt('saida.out', phi_grid, fmt='%1.2e')
 
 
 def set_velocities(coords, T_cl_grid):
@@ -321,7 +321,6 @@ def set_velocities(coords, T_cl_grid):
                     drho = rho_axis[j]-rho_axis[j-1]
                     ds[j] = dphi/drho
                 ds[0] = ds[1]
-                print ds
                 vphis[bestz] = interp1d(rho_axis, ds, kind='cubic')
             dP = (disk_density(rho_axis[bestr], z, M_gas, z0/7)*
                   T_cl_grid[bestr][bestz] - disk_density(rho_axis[bestr-1], 
