@@ -34,7 +34,7 @@ def init():
     global a_halo, a_bulge, Rd, z0
     global N_total, M_total
     global phi_grid, rho_axis, z_axis, rho_max, z_max, N_rho, Nz
-    global halo_core, bulge_core, N_CORES, force_yes
+    global halo_core, bulge_core, N_CORES, force_yes, output
     flags = parser(description="Generates an initial conditions file\
                                 for a galaxy simulation with halo, stellar\
                                 disk, gaseous disk and bulge components.")
@@ -56,6 +56,7 @@ def init():
     bulge_core = args.bulge_core
     N_CORES = int(args.cores)
     force_yes = args.force_yes
+    output = args.o
 
     if not (path.isfile("header.txt") and path.isfile("galaxy_param.txt")):
         print "header.txt or galaxy_param.txt missing."
@@ -437,7 +438,7 @@ def write_input_file(galaxy_data):
     ids = np.arange(1, N_total+1, 1)
     smooths = np.zeros(N_gas)
     write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
-                   from_text=False,
+                   from_text=False, outfile=output
                    data_list=[coords, vels, ids, masses, U, rho, smooths])
 
 

@@ -7,19 +7,17 @@ or by directly passing the necessary data to the function write_snapshot
 
 In the first case, just run the following:
 
-python snapwrite.py FOLDER OUTPUT
+python snapwrite.py FOLDER
 
 FOLDER: folder containing all the input files, which are:
 
     header.txt position.txt velocity.txt id.txt masses.txt (always)
     energy.txt density.txt smoothing.txt (in case there is gas)
 
-Note that the columns of the positions and velocities files should be
-separated with tabs, as well as the columns of the header. Among the
-input files, header.txt is the only one that accepts comments, which
-should be preceded by a #.
-
-OUTPUT: name of the file that will be the output snapshot.
+A file named 'init.dat' will be created.  Note that the columns of the
+positions and velocities files should be separated with tabs, as well
+as the columns of the header. Among the input files, header.txt is the
+only one that accepts comments, which should be preceded by a #.
 '''
 
 import sys
@@ -27,9 +25,6 @@ import os
 import struct
 
 import numpy as np
-
-
-output = sys.argv[-1]
 
 
 # Creates a list containing the non-commented, non-empty lines
@@ -101,7 +96,8 @@ def write_block(f, block_data, data_type, block_name):
     write_dummy(f, [nbytes])
 
 
-def write_snapshot(n_part, folder=None, from_text=True, data_list=None):
+def write_snapshot(n_part, folder=None, from_text=True, data_list=None,
+                   outfile='init.dat'):
     N_gas = n_part[0]
     if(from_text and not folder):
         print ("error: can't call write_snapshot with from_text=True\n"
@@ -110,8 +106,8 @@ def write_snapshot(n_part, folder=None, from_text=True, data_list=None):
         folder = os.getcwd()
 
     # Erasing the input file before opening it.
-    open(output, 'w').close()
-    f = file(output, 'a')
+    open(outfile, 'w').close()
+    f = file(outfile, 'a')
     header_data = read_header(folder, n_part)
     if(from_text):
         pos_data = np.fromfile(folder + "position.txt", sep='\t')
