@@ -307,6 +307,8 @@ def set_velocities(coords, T_cl_grid):
         y = part[1]
         z = abs(part[2])
         rho = (x**2 + y**2)**0.5
+        if rho < rho_axis[0]:
+            rho = rho_axis[0]
         if(x > 0 and y > 0):
             phi = arctan(y/x)
         elif(x < 0 and y > 0):
