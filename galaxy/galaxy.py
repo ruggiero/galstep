@@ -16,7 +16,7 @@ from argparse import ArgumentParser as parser
 from optimized_functions import phi_disk
 from snapwrite import process_input, write_snapshot
 syspath.append(path.join(path.dirname(__file__), '..', 'misc'))
-from units import temp_to_internal_energy, internal_energy_to_temp
+from units import temp_to_internal_energy
 
 
 G = 43007.1
@@ -34,7 +34,7 @@ def init():
     global a_halo, a_bulge, Rd, z0
     global N_total, M_total
     global phi_grid, rho_axis, z_axis, rho_max, z_max, N_rho, Nz
-    global halo_core, bulge_core, N_CORES, force_yes, output
+    global halo_core, bulge_core, N_CORES, force_yes, output, disk_temp
     flags = parser(description="Generates an initial conditions file\
                                 for a galaxy simulation with halo, stellar\
                                 disk, gaseous disk and bulge components.")
@@ -45,6 +45,9 @@ def init():
     flags.add_argument('-cores', help='The number of cores to use during the\
                        potential canculation. Default is 1. Make sure this\
                        number is a factor of N_rho and N_z.', default=1)
+    flags.add_argument('-temp', help='Initial gaseous temperature for the gas.\
+                       Must be chosen wisely to guarantee that the disk won\'t\
+                       explode or collapse. Default is 8000.', default=8000)
     flags.add_argument('--force-yes', help='Don\'t ask if you want to use the\
                         existing potential_data.txt file. Might be useful to\
                         run the script from another script.',
@@ -55,6 +58,7 @@ def init():
     halo_core = args.halo_core
     bulge_core = args.bulge_core
     N_CORES = int(args.cores)
+    temperature = float(args.disk_temp)
     force_yes = args.force_yes
     output = args.o
 
@@ -180,7 +184,7 @@ def set_bulge_positions():
 
 def set_disk_positions(N, z0):
     radii = np.zeros(N)
-    # The maximum radius is restricted to 21 kpc
+    # The maximum radius is restricted to 2121 kpc
     sample = nprand.sample(N) * disk_radial_cumulative(21)
     for i, s in enumerate(sample):
         radii[i] = disk_radial_inverse_cumulative(s)
@@ -392,34 +396,11 @@ def set_temperatures(coords_gas):
     HYDROGEN_MASSFRAC = 0.76
     meanweight_n = 4.0 / (1 + 3 * HYDROGEN_MASSFRAC)
     meanweight_i = 4.0 / (3 + 5 * HYDROGEN_MASSFRAC)
-    ys = np.zeros((N_rho, Nz)) # Integrand array.
-    for i in range(N_rho):
-        for j in range(1, Nz):
-            dphi = phi_grid[i][j] - phi_grid[i][j-1]
-            dz = z_axis[j] - z_axis[j-1]
-            ys[i][j] = (disk_density(rho_axis[i], z_axis[j], M_gas, z0/7) *
-                        dphi/dz)
-        ys[i][0] = ys[i][1]
-        for j in range(0, Nz-1):
-            result = (np.trapz(ys[i][j:], z_axis[j:]) /
-                      disk_density(rho_axis[i], z_axis[j], M_gas, z0/7))
-            temp_i = MP_OVER_KB * meanweight_i * result
-            temp_n = MP_OVER_KB * meanweight_n * result
-            if(temp_i > 1.0e4):
-                T_grid[i][j] = temp_to_internal_energy(temp_i)
-            else:
-                T_grid[i][j] = temp_to_internal_energy(temp_n)
-            T_cl_grid[i][j] = result
-        T_grid[i][-1] = T_grid[i][-2]
-        T_cl_grid[i][-1] = T_cl_grid[i][-2]
-    for i, part in enumerate(coords_gas):
-        rho = (part[0]**2 + part[1]**2)**0.5
-        z = abs(part[2])
-        bestz = interpolate(z, z_axis)
-        bestr = interpolate(rho, rho_axis)
-        U[i] = T_grid[bestr][bestz]
-    #U.fill(temp_to_internal_energy(1000))
-    #T_cl_grid.fill(1000 / MP_OVER_KB / meanweight_n)
+    U.fill(temp_to_internal_energy(disk_temp))
+    if(disk_temp > 1.0e4):
+        T_cl_grid.fill(disk_temp / MP_OVER_KB / meanweight_i)
+    else:
+        T_cl_grid.fill(disk_temp / MP_OVER_KB / meanweight_n)
     return U, T_cl_grid
 
 
@@ -440,7 +421,7 @@ def write_input_file(galaxy_data):
     ids = np.arange(1, N_total+1, 1)
     smooths = np.zeros(N_gas)
     write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
-                   from_text=False, outfile=output
+                   from_text=False, outfile=output,
                    data_list=[coords, vels, ids, masses, U, rho, smooths])
 
 
