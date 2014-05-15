@@ -19,18 +19,22 @@ be ready for execution.
 
 ### galaxy.py
 
-    usage: galaxy.py [-h] [--halo-core] [--bulge-core] [-cores CORES]
+    usage: galaxy.py [-h] [--halo-core] [--bulge-core] [-cores CORES] [-temp TEMP]
                      [--force-yes] [-o init.dat]
-    
+
     Generates an initial conditions file for a galaxy simulation with halo,
     stellar disk, gaseous disk and bulge components.
-    
+
     optional arguments:
       -h, --help    show this help message and exit
       --halo-core   Sets the density profile for the halo to have a core.
       --bulge-core  The same, but for the bulge.
       -cores CORES  The number of cores to use during the potential canculation.
-                    Default is 1. Make sure this number is a power of 2.
+                    Default is 1. Make sure this number is a factor of N_rho and
+                    N_z.
+      -temp TEMP    Initial gaseous disk temperature. Must be chosen wisely to
+                    guarantee that the disk won't explode or collapse. Default is
+                    8000.
       --force-yes   Don't ask if you want to use the existing potential_data.txt
                     file. Might be useful to run the script from another script.
       -o init.dat   The name of the output file.
