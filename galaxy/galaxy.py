@@ -45,7 +45,7 @@ def init():
     flags.add_argument('-cores', help='The number of cores to use during the\
                        potential canculation. Default is 1. Make sure this\
                        number is a factor of N_rho and N_z.', default=1)
-    flags.add_argument('-temp', help='Initial gaseous temperature for the gas.\
+    flags.add_argument('-temp', help='Initial gaseous disk temperature.\
                        Must be chosen wisely to guarantee that the disk won\'t\
                        explode or collapse. Default is 8000.', default=8000)
     flags.add_argument('--force-yes', help='Don\'t ask if you want to use the\
