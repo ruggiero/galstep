@@ -10,6 +10,7 @@ from os import path
 from sys import path as syspath
 syspath.append(path.join(path.dirname(__file__), '..', 'misc'))
 from units import temp_to_internal_energy, internal_energy_to_temp
+import matplotlib.pyplot as plt
 
 
 
@@ -142,9 +143,15 @@ def main():
 
     # From here on, the data for all the particles is accessible
     # As an example, showing the positions of all the particles
+    points = []
     for i, p in enumerate(p_list):
         if(i < h.n_part[0]):
-            print (p.pos[0]**2 + p.pos[1]**2)**0.5, internal_energy_to_temp(p.U)
+            points.append([(p.pos[0]**2 + p.pos[1]**2)**0.5, internal_energy_to_temp(p.U)])
+        else:
+            break
+    points = sorted(points)
+    plt.plot([p[0] for p in points], [p[1] for p in points])
+    plt.savefig(sys.argv[1] + "_temp.png")
 
 if __name__ == '__main__':
     main()
