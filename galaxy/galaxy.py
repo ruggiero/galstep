@@ -58,7 +58,7 @@ def init():
     halo_core = args.halo_core
     bulge_core = args.bulge_core
     N_CORES = int(args.cores)
-    temperature = float(args.disk_temp)
+    disk_temp = float(args.disk_temp)
     force_yes = args.force_yes
     output = args.o
 
