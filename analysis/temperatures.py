@@ -152,6 +152,10 @@ def main():
     points = sorted(points)
     plt.plot([p[0] for p in points], [p[1] for p in points])
     plt.savefig(sys.argv[1] + "_temp.png")
+    plt.clf()
+    plt.hist([p[1] for p in points])
+    plt.savefig(sys.argv[1] + "_hist.png")
+
 
 if __name__ == '__main__':
     main()
