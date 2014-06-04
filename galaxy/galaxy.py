@@ -82,7 +82,7 @@ def generate_galaxy():
     print "Setting positions..."
     coords_halo = set_halo_positions()
     coords_disk = set_disk_positions(N_disk, z0)
-    coords_gas = set_disk_positions(N_gas, z0/7)
+    coords_gas = set_disk_positions(N_gas, 0.4*z0)
     coords_bulge = set_bulge_positions()
     coords = np.concatenate((coords_gas, coords_halo, coords_disk,
                              coords_bulge))
@@ -228,7 +228,7 @@ def fill_potential_grid():
                 shared_phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j],
                     M_disk, Rd, z0)
                 shared_phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j],
-                    M_gas, Rd, z0/7)
+                    M_gas, Rd, 0.4*z0)
                 shared_phi_grid[i][j] += dehnen_potential(r, M_bulge, a_bulge,
                     bulge_core)
     shared_phi_grid = [Array('f', phi_grid[i]) for i in range(len(phi_grid))]
@@ -333,12 +333,12 @@ def set_velocities(coords, T_cl_grid):
                     ds[j] = dphi/drho
                 ds[0] = ds[1]
                 vphis[bestz] = interp1d(rho_axis, ds, kind='cubic')
-            dP = (disk_density(rho_axis[bestr], z, M_gas, z0/7)*
+            dP = (disk_density(rho_axis[bestr], z, M_gas, 0.4*z0)*
                   T_cl_grid[bestr][bestz] - disk_density(rho_axis[bestr-1], 
-                  z, M_gas, z0/7)*T_cl_grid[bestr-1][bestz])
+                  z, M_gas, 0.4*z0)*T_cl_grid[bestr-1][bestz])
             drho = rho_axis[bestr] - rho_axis[bestr-1]
             vphi2 = rho * (vphis[bestz](rho) + 1/disk_density(rho, z, M_gas,
-                    z0/7) * dP/drho)
+                    0.4*z0) * dP/drho)
             vphi = abs(vphi2)**0.5
             vz = vr = 0
         elif(i >= N_gas and i < N_gas+N_halo):
@@ -383,7 +383,7 @@ def set_densities(coords_gas):
     for i, part in enumerate(coords_gas):
         rho = (part[0]**2 + part[1]**2)**0.5
         z = abs(part[2])
-        rhos[i] = disk_density(rho, z, M_gas, z0/7)
+        rhos[i] = disk_density(rho, z, M_gas, 0.4*z0)
     return rhos
 
 
@@ -402,12 +402,12 @@ def set_temperatures(coords_gas):
         for j in range(1, Nz):
             dphi = phi_grid[i][j] - phi_grid[i][j-1]
             dz = z_axis[j] - z_axis[j-1]
-            ys[i][j] = (disk_density(rho_axis[i], z_axis[j], M_gas, 0.7*z0) *
+            ys[i][j] = (disk_density(rho_axis[i], z_axis[j], M_gas, 0.4*z0) *
                         dphi/dz)
         ys[i][0] = ys[i][1]
         for j in range(0, Nz-1):
             result = (np.trapz(ys[i][j:], z_axis[j:]) /
-                      disk_density(rho_axis[i], z_axis[j], M_gas, 0.7*z0))
+                      disk_density(rho_axis[i], z_axis[j], M_gas, 0.4*z0))
             temp_i = MP_OVER_KB * meanweight_i * result
             temp_n = MP_OVER_KB * meanweight_n * result
             if(temp_i > 1.0e4):
