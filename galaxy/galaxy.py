@@ -45,9 +45,6 @@ def init():
     flags.add_argument('-cores', help='The number of cores to use during the\
                        potential canculation. Default is 1. Make sure this\
                        number is a factor of N_rho and N_z.', default=1)
-    flags.add_argument('-temp', help='Initial gaseous disk temperature.\
-                       Must be chosen wisely to guarantee that the disk won\'t\
-                       explode or collapse. Default is 8000.', default=8000)
     flags.add_argument('--force-yes', help='Don\'t ask if you want to use the\
                         existing potential_data.txt file. Might be useful to\
                         run the script from another script.',
@@ -58,7 +55,6 @@ def init():
     halo_core = args.halo_core
     bulge_core = args.bulge_core
     N_CORES = int(args.cores)
-    disk_temp = float(args.disk_temp)
     force_yes = args.force_yes
     output = args.o
 
@@ -250,7 +246,7 @@ def fill_potential_grid():
             phi_grid[i][j] = shared_phi_grid[i][j]
 
 
-def set_velocities(coords, T_cl_grid):
+def generate_sigma_grids():
     # The [0], [1] and [2] components of this grid will refer to the halo,
     # disk and bulge, respectively. The calculation being performed here
     # follows the prescription found in Springel & White, 1999.
@@ -285,8 +281,8 @@ def set_velocities(coords, T_cl_grid):
             r1 = (rho_axis[i+1]**2 + z_axis[j]**2)**0.5
             drho = rho_axis[i+1] - rho_axis[i]
             dphi = phi_grid[i+1][j] - phi_grid[i][j]
-            d2phi = phi_grid[i+1][j] - 2*phi_grid[i][j] + phi_grid[i-1][j]
-            kappa2 = 3/rho_axis[i] * dphi/drho + d2phi/drho**2
+            d2phidrho2 = (dphi/drho - (phi_grid[i][j]-phi_grid[i-1][j])/(rho_axis[i]-rho_axis[i-1])) / (rho_axis[i] - rho_axis[i-1])
+            kappa2 = 3/rho_axis[i] * dphi/drho + d2phidrho2
             gamma2 = 4/(kappa2*rho_axis[i]) * dphi/drho
             sphi_grid[0][i][j] = (sz_grid[0][i][j] + rho_axis[i]/halo_density(r0) *
                 (halo_density(r1)*sz_grid[0][i+1][j] - 
@@ -300,7 +296,12 @@ def set_velocities(coords, T_cl_grid):
             for k in range(3):
                 sphi_grid[k][0][j] = sphi_grid[k][1][j]
                 sphi_grid[k][N_rho-1][j] = sphi_grid[k][N_rho-3][j]
+    return sz_grid, sphi_grid
 
+
+
+def set_velocities(coords, T_cl_grid):
+    sz_grid, sphi_grid = generate_sigma_grids()
     # Dictionary to hold interpolator functions for the circular velocity
     # of the disk, one function per value of z. They are created on the run,
     # to avoid creating functions for values of z which are not used.
@@ -396,11 +397,37 @@ def set_temperatures(coords_gas):
     HYDROGEN_MASSFRAC = 0.76
     meanweight_n = 4.0 / (1 + 3 * HYDROGEN_MASSFRAC)
     meanweight_i = 4.0 / (3 + 5 * HYDROGEN_MASSFRAC)
-    U.fill(temp_to_internal_energy(disk_temp))
-    if(disk_temp > 1.0e4):
-        T_cl_grid.fill(disk_temp / MP_OVER_KB / meanweight_i)
-    else:
-        T_cl_grid.fill(disk_temp / MP_OVER_KB / meanweight_n)
+    ys = np.zeros((N_rho, Nz)) # Integrand array.
+    for i in range(N_rho):
+        for j in range(1, Nz):
+            dphi = phi_grid[i][j] - phi_grid[i][j-1]
+            dz = z_axis[j] - z_axis[j-1]
+            ys[i][j] = (disk_density(rho_axis[i], z_axis[j], M_gas, 0.7*z0) *
+                        dphi/dz)
+        ys[i][0] = ys[i][1]
+        for j in range(0, Nz-1):
+            result = (np.trapz(ys[i][j:], z_axis[j:]) /
+                      disk_density(rho_axis[i], z_axis[j], M_gas, 0.7*z0))
+            temp_i = MP_OVER_KB * meanweight_i * result
+            temp_n = MP_OVER_KB * meanweight_n * result
+            if(temp_i > 1.0e4):
+                T_grid[i][j] = temp_to_internal_energy(temp_i)
+            else:
+                T_grid[i][j] = temp_to_internal_energy(temp_n)
+            T_cl_grid[i][j] = result
+        T_grid[i][-1] = T_grid[i][-2]
+        T_cl_grid[i][-1] = T_cl_grid[i][-2]
+    for i, part in enumerate(coords_gas):
+        rho = (part[0]**2 + part[1]**2)**0.5
+        z = abs(part[2])
+        bestz = interpolate(z, z_axis)
+        bestr = interpolate(rho, rho_axis)
+        U[i] = T_grid[bestr][bestz]
+    #U.fill(temp_to_internal_energy(disk_temp))
+    #if(disk_temp > 1.0e4):
+    #    T_cl_grid.fill(disk_temp / MP_OVER_KB / meanweight_i)
+    #else:
+    #    T_cl_grid.fill(disk_temp / MP_OVER_KB / meanweight_n)
     return U, T_cl_grid
 
 
