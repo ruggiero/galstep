@@ -34,13 +34,15 @@ def init():
     global a_halo, a_bulge, Rd, z0
     global N_total, M_total
     global phi_grid, rho_axis, z_axis, rho_max, z_max, N_rho, Nz
-    global halo_core, bulge_core, N_CORES, force_yes, output, disk_temp
+    global halo_core, bulge_core, N_CORES, force_yes, output, disk_temp, gas
     flags = parser(description="Generates an initial conditions file\
                                 for a galaxy simulation with halo, stellar\
                                 disk, gaseous disk and bulge components.")
     flags.add_argument('--halo-core', help='Sets the density profile for the\
                        halo to have a core.', action='store_true')
     flags.add_argument('--bulge-core', help='The same, but for the bulge.',
+                       action='store_true')
+    flags.add_argument('--nogas', help='Generates a galaxy without gas.',
                        action='store_true')
     flags.add_argument('-cores', help='The number of cores to use during the\
                        potential canculation. Default is 1. Make sure this\
@@ -54,6 +56,7 @@ def init():
     args = flags.parse_args()
     halo_core = args.halo_core
     bulge_core = args.bulge_core
+    gas = not args.nogas
     N_CORES = int(args.cores)
     force_yes = args.force_yes
     output = args.o
@@ -66,9 +69,12 @@ def init():
     M_halo, M_disk, M_bulge, M_gas = (float(i[0]) for i in vars_[0:4])
     N_halo, N_disk, N_bulge, N_gas = (float(i[0]) for i in vars_[4:8])
     a_halo, a_bulge, Rd, z0 = (float(i[0]) for i in vars_[8:12])
+    if(not gas):
+        N_gas = 0
+        M_gas = 0
     M_total = M_disk + M_bulge + M_halo + M_gas
     N_total = N_disk + N_bulge + N_halo + N_gas
-    N_rho = Nz = 280 # Make sure N_CORES is a factor of this number!
+    N_rho = Nz = 150 # Make sure N_CORES is a factor of this number!
     phi_grid = np.zeros((N_rho, Nz))
     rho_max = 200 * a_halo
     # This has to go far so I can estimate the integrals below.
@@ -82,10 +88,13 @@ def generate_galaxy():
     print "Setting positions..."
     coords_halo = set_halo_positions()
     coords_disk = set_disk_positions(N_disk, z0)
-    coords_gas = set_disk_positions(N_gas, 0.4*z0)
     coords_bulge = set_bulge_positions()
-    coords = np.concatenate((coords_gas, coords_halo, coords_disk,
-                             coords_bulge))
+    if(gas):
+        coords_gas = set_disk_positions(N_gas, 0.4*z0)
+        coords = np.concatenate((coords_gas, coords_halo, coords_disk,
+                                 coords_bulge))
+    else:
+        coords = np.concatenate((coords_halo, coords_disk, coords_bulge))
 
     if path.isfile('potential_data.txt'):
         if not force_yes:
@@ -105,16 +114,23 @@ def generate_galaxy():
     else:
         fill_potential_grid()
         np.savetxt('potential_data.txt', phi_grid)
-    print "Setting temperatures..."
-    U, T_cl_grid = set_temperatures(coords_gas) 
-    print "Setting velocities..."
-    vels = set_velocities(coords, T_cl_grid) 
+    if(gas):
+        print "Setting temperatures..."
+        U, T_cl_grid = set_temperatures(coords_gas) 
+        rho = set_densities(coords_gas)
+        print "Setting velocities..."
+        vels = set_velocities(coords, T_cl_grid) 
+    else:
+        print "Setting velocities..."
+        vels = set_velocities(coords, np.empty(0)) 
     coords = np.array(coords, order='C')
     coords.shape = (1, -1) # Linearizing the array.
     vels = np.array(vels, order='C')
     vels.shape = (1, -1)
-    rho = set_densities(coords_gas)
-    return [coords[0], vels[0], U, rho]
+    if(gas):
+        return [coords[0], vels[0], U, rho]
+    else:
+        return [coords[0], vels[0]]
 
 
 def dehnen_inverse_cumulative(Mc, M, a, core):
@@ -227,8 +243,9 @@ def fill_potential_grid():
                     halo_core)
                 shared_phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j],
                     M_disk, Rd, z0)
-                shared_phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j],
-                    M_gas, Rd, 0.4*z0)
+                if(gas):
+                    shared_phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j],
+                        M_gas, Rd, 0.4*z0)
                 shared_phi_grid[i][j] += dehnen_potential(r, M_bulge, a_bulge,
                     bulge_core)
     shared_phi_grid = [Array('f', phi_grid[i]) for i in range(len(phi_grid))]
@@ -388,7 +405,7 @@ def set_densities(coords_gas):
 
 
 def set_temperatures(coords_gas):
-    T_grid = np.zeros((N_rho, Nz))
+    U_grid = np.zeros((N_rho, Nz))
     U = np.zeros(N_gas)
     # Constantless temperature, will be used in the circular
     # velocity determination for the gas.
@@ -411,18 +428,18 @@ def set_temperatures(coords_gas):
             temp_i = MP_OVER_KB * meanweight_i * result
             temp_n = MP_OVER_KB * meanweight_n * result
             if(temp_i > 1.0e4):
-                T_grid[i][j] = temp_to_internal_energy(temp_i)
+                U_grid[i][j] = temp_to_internal_energy(temp_i)
             else:
-                T_grid[i][j] = temp_to_internal_energy(temp_n)
+                U_grid[i][j] = temp_to_internal_energy(temp_n)
             T_cl_grid[i][j] = result
-        T_grid[i][-1] = T_grid[i][-2]
+        U_grid[i][-1] = U_grid[i][-2]
         T_cl_grid[i][-1] = T_cl_grid[i][-2]
     for i, part in enumerate(coords_gas):
         rho = (part[0]**2 + part[1]**2)**0.5
         z = abs(part[2])
         bestz = interpolate(z, z_axis)
         bestr = interpolate(rho, rho_axis)
-        U[i] = T_grid[bestr][bestz]
+        U[i] = U_grid[bestr][bestz]
     #U.fill(temp_to_internal_energy(disk_temp))
     #if(disk_temp > 1.0e4):
     #    T_cl_grid.fill(disk_temp / MP_OVER_KB / meanweight_i)
@@ -434,22 +451,28 @@ def set_temperatures(coords_gas):
 def write_input_file(galaxy_data):
     coords = galaxy_data[0]
     vels = galaxy_data[1]
-    U = galaxy_data[2]
-    rho = galaxy_data[3]
-    m_gas = np.empty(N_gas)
-    m_gas.fill(M_gas/N_gas)
+    ids = np.arange(1, N_total+1, 1)
     m_halo = np.empty(N_halo)
     m_halo.fill(M_halo/N_halo)
     m_disk = np.empty(N_disk)
     m_disk.fill(M_disk/N_disk)
     m_bulge = np.empty(N_bulge)
     m_bulge.fill(M_bulge/N_bulge)
-    masses = np.concatenate((m_gas, m_halo, m_disk, m_bulge))
-    ids = np.arange(1, N_total+1, 1)
-    smooths = np.zeros(N_gas)
-    write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
-                   from_text=False, outfile=output,
-                   data_list=[coords, vels, ids, masses, U, rho, smooths])
+    if(gas):
+        U = galaxy_data[2]
+        rho = galaxy_data[3]
+        m_gas = np.empty(N_gas)
+        m_gas.fill(M_gas/N_gas)
+        masses = np.concatenate((m_gas, m_halo, m_disk, m_bulge))
+        smooths = np.zeros(N_gas)
+        write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
+                       from_text=False, outfile=output,
+                       data_list=[coords, vels, ids, masses, U, rho, smooths])
+    else:
+        masses = np.concatenate((m_halo, m_disk, m_bulge))
+        write_snapshot(n_part=[0, N_halo, N_disk, N_bulge, 0, 0],
+                       from_text=False, outfile=output,
+                       data_list=[coords, vels, ids, masses])
 
 
 if __name__ == '__main__':
