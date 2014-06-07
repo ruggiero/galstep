@@ -263,6 +263,19 @@ def fill_potential_grid():
             phi_grid[i][j] = shared_phi_grid[i][j]
 
 
+# Calculates the double partial derivative of the potential
+# as to rho, at the point (rho_axis[i], z_axis[j]). As the grid
+# is unevenly spaced, a more complicated formula must be used.
+# Formula taken from http://mathformeremortals.wordpress.com/
+# 2013/01/12/a-numerical-second-derivative-from-three-points/
+def d2phi_drho2(i, j):
+    x1, x2, x3 = rho_axis[i-1], rho_axis[i], rho_axis[i+1]
+    y1, y2, y3 = phi_grid[i-1][j], phi_grid[i][j], phi_grid[i+1][j]
+    v1 = np.array((2/((x2-x1)*(x3-x1)),-2/((x3-x2)*(x2-x1)),2/((x3-x2)*(x3-x1))))
+    v2 = np.array((y1, y2, y3))
+    return np.dot(v1, v2)
+
+
 def generate_sigma_grids():
     # The [0], [1] and [2] components of this grid will refer to the halo,
     # disk and bulge, respectively. The calculation being performed here
@@ -298,8 +311,7 @@ def generate_sigma_grids():
             r1 = (rho_axis[i+1]**2 + z_axis[j]**2)**0.5
             drho = rho_axis[i+1] - rho_axis[i]
             dphi = phi_grid[i+1][j] - phi_grid[i][j]
-            d2phidrho2 = (dphi/drho - (phi_grid[i][j]-phi_grid[i-1][j])/(rho_axis[i]-rho_axis[i-1])) / (rho_axis[i] - rho_axis[i-1])
-            kappa2 = 3/rho_axis[i] * dphi/drho + d2phidrho2
+            kappa2 = 3/rho_axis[i] * dphi/drho + d2phi_drho2(i, j)
             gamma2 = 4/(kappa2*rho_axis[i]) * dphi/drho
             sphi_grid[0][i][j] = (sz_grid[0][i][j] + rho_axis[i]/halo_density(r0) *
                 (halo_density(r1)*sz_grid[0][i+1][j] - 
