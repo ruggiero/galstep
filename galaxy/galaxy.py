@@ -196,8 +196,8 @@ def set_bulge_positions():
 
 def set_disk_positions(N, z0):
     radii = np.zeros(N)
-    # The maximum radius is restricted to 2121 kpc
-    sample = nprand.sample(N) * disk_radial_cumulative(21)
+    # The maximum radius is restricted to 60 kpc
+    sample = nprand.sample(N) * disk_radial_cumulative(60)
     for i, s in enumerate(sample):
         radii[i] = disk_radial_inverse_cumulative(s)
     zs = disk_height_inverse_cumulative(nprand.sample(N), z0)
