@@ -69,5 +69,5 @@ def rho_l_integrand(double theta, double r, int l):
     cdef double rho, z
     rho = r * sin(theta)
     z = r * cos(theta)
-    return M / (4 * pi * z0 * Rd**2) * ((1 / cosh(z / (2*z0))**2) * 
+    return M / (4*pi*z0*Rd**2) * ((1 / cosh(z/z0)**2) * 
         exp(-rho/Rd) * sin(theta) * Pl(cos(theta), l))
