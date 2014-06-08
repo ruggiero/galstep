@@ -33,8 +33,8 @@ def init():
     global N_halo, N_disk, N_bulge, N_gas
     global a_halo, a_bulge, Rd, z0
     global N_total, M_total
-    global phi_grid, rho_axis, z_axis, rho_max, z_max, N_rho, Nz
-    global halo_core, bulge_core, N_CORES, force_yes, output, disk_temp, gas
+    global phi_grid, rho_axis, z_axis, N_rho, Nz
+    global halo_core, bulge_core, N_CORES, force_yes, output, gas
     flags = parser(description="Generates an initial conditions file\
                                 for a galaxy simulation with halo, stellar\
                                 disk, gaseous disk and bulge components.")
