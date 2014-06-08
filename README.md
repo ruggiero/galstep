@@ -48,3 +48,8 @@ A sample potential data file is provided for the parameters file included.
     Rafael Ruggiero
     Undergraduate student at Universidade de São Paulo (USP), Brazil
     Contact: bluewhale [at] cecm.usp.br
+
+## Disclaimer
+
+Feel free to use this code on your work, but please link this page
+in your paper.
