@@ -25,7 +25,7 @@ def phi_disk(double rho, double z, double Mf, double Rdf, double z0f):
         t1 = (1/r**(l+1)) * quad(phi_integrand_1, 0, r, args=(l), limit=200, full_output=-1)[0]
         t2 = r**l * quad(phi_integrand_2, r, inf, args=(l), full_output=-1)[0]
         sum_ += Pl(cos(theta), l) * (t1 + t2)
-    return -pi * G * sum_
+    return -2*pi*G * sum_
 
 
 cdef double Pl(double x, int l):
