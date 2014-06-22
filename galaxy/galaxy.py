@@ -74,7 +74,7 @@ def init():
         M_gas = 0
     M_total = M_disk + M_bulge + M_halo + M_gas
     N_total = N_disk + N_bulge + N_halo + N_gas
-    N_rho = Nz = 150 # Make sure N_CORES is a factor of this number!
+    N_rho = Nz = 200 # Make sure N_CORES is a factor of this number!
     phi_grid = np.zeros((N_rho, Nz))
     rho_max = 200 * a_halo
     # This has to go far so I can estimate the integrals below.
@@ -276,7 +276,7 @@ def d2phi_drho2(i, j):
     return np.dot(v1, v2)
 
 
-def generate_sigma_grids():
+def generate_sigma_grids(T_cl_grid):
     # The [0], [1] and [2] components of this grid will refer to the halo,
     # disk and bulge, respectively. The calculation being performed here
     # follows the prescription found in Springel & White, 1999.
@@ -330,7 +330,7 @@ def generate_sigma_grids():
 
 
 def set_velocities(coords, T_cl_grid):
-    sz_grid, sphi_grid = generate_sigma_grids()
+    sz_grid, sphi_grid = generate_sigma_grids(T_cl_grid)
     # Dictionary to hold interpolator functions for the circular velocity
     # of the disk, one function per value of z. They are created on the run,
     # to avoid creating functions for values of z which are not used.
