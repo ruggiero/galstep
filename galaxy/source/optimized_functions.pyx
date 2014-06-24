@@ -3,7 +3,7 @@ from numpy import pi, inf
 from scipy.integrate import quad
 
 
-cdef double G = 43007.1
+cdef double G = 44923.53
 cdef double M, Rd, z0
 
 

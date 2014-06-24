@@ -12,6 +12,7 @@ from scipy.interpolate import interp1d
 from bisect import bisect_left
 from multiprocessing import Process, Array
 from argparse import ArgumentParser as parser
+from itertools import product
 
 from optimized_functions import phi_disk
 from snapwrite import process_input, write_snapshot
@@ -19,7 +20,7 @@ syspath.append(path.join(path.dirname(__file__), '..', 'misc'))
 from units import temp_to_internal_energy
 
 
-G = 43007.1
+G = 44923.53
 
 
 def main():
@@ -74,7 +75,7 @@ def init():
         M_gas = 0
     M_total = M_disk + M_bulge + M_halo + M_gas
     N_total = N_disk + N_bulge + N_halo + N_gas
-    N_rho = Nz = 200 # Make sure N_CORES is a factor of this number!
+    N_rho = Nz = 400 # Make sure N_CORES is a factor of this number!
     phi_grid = np.zeros((N_rho, Nz))
     rho_max = 200 * a_halo
     # This has to go far so I can estimate the integrals below.
@@ -231,23 +232,29 @@ def interpolate(value, axis):
 
 def fill_potential_grid():
     ps = []
+    # Indexes are randomly distributed across processors for higher
+    # performance. It takes longer to calculate a multipolar expansion
+    # at large radii. ip stands for 'index pair'.
+    ip = nprand.permutation(list(product(range(N_rho), range(Nz))))
     print ("Filling potential grid. This takes a while, even after thorough\n"
            "optimization.")
     def loop(n_loop, N_CORES):
-        for i in range(n_loop*N_rho/N_CORES, (1+n_loop)*N_rho/N_CORES):
-            print "%1.1f%% done at core %d" % (float(i-n_loop*N_rho/N_CORES) /
-                (N_rho/N_CORES) / 0.01, n_loop + 1)
-            for j in range(Nz):
-                r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
-                shared_phi_grid[i][j] += dehnen_potential(r, M_halo, a_halo,
-                    halo_core)
-                shared_phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j],
-                    M_disk, Rd, z0)
-                if(gas):
-                    shared_phi_grid[i][j] += phi_disk(rho_axis[i], z_axis[j],
-                        M_gas, Rd, 0.4*z0)
-                shared_phi_grid[i][j] += dehnen_potential(r, M_bulge, a_bulge,
-                    bulge_core)
+        for i in range(n_loop*N_rho*Nz/N_CORES, (1+n_loop)*N_rho*Nz/N_CORES):
+            if(i % 50 == 0):
+                print "%1.1f%% done at core %d" % (float(i-n_loop*N_rho*Nz/N_CORES) /
+                    (N_rho*Nz/N_CORES) / 0.01, n_loop + 1)
+            m = ip[i][0]
+            n = ip[i][1]
+            r = (rho_axis[m]**2 + z_axis[n]**2)**0.5
+            shared_phi_grid[m][n] += dehnen_potential(r, M_halo, a_halo,
+                halo_core)
+            shared_phi_grid[m][n] += phi_disk(rho_axis[m], z_axis[n],
+                M_disk, Rd, z0)
+            if(gas):
+                shared_phi_grid[m][n] += phi_disk(rho_axis[m], z_axis[n],
+                    M_gas, Rd, 0.4*z0)
+            shared_phi_grid[m][n] += dehnen_potential(r, M_bulge, a_bulge,
+                bulge_core)
     shared_phi_grid = [Array('f', phi_grid[i]) for i in range(len(phi_grid))]
     proc=[Process(target=loop, args=(n, N_CORES)) for n in range(N_CORES)]
     try:
