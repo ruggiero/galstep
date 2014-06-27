@@ -8,7 +8,6 @@ import numpy as np
 import numpy.random as nprand
 from numpy import cos, sin, pi, arccos, log10, exp, arctan, cosh
 from scipy.optimize import brentq
-from scipy.interpolate import interp1d
 from bisect import bisect_left
 from multiprocessing import Process, Array
 from argparse import ArgumentParser as parser
@@ -361,19 +360,12 @@ def set_velocities(coords, T_cl_grid):
         bestz = interpolate(z, z_axis)
         bestr = interpolate(rho, rho_axis)
         if(i < N_gas):
-            if(bestz not in vphis):
-                ds = np.zeros(N_rho)
-                for j in range(1, N_rho):
-                    dphi = phi_grid[j][bestz]-phi_grid[j-1][bestz]
-                    drho = rho_axis[j]-rho_axis[j-1]
-                    ds[j] = dphi/drho
-                ds[0] = ds[1]
-                vphis[bestz] = interp1d(rho_axis, ds, kind='cubic')
+            dphi = phi_grid[bestr][bestz]-phi_grid[bestr-1][bestz]
+            drho = rho_axis[bestr]-rho_axis[bestr-1]
             dP = (disk_density(rho_axis[bestr], z, M_gas, 0.4*z0)*
                   T_cl_grid[bestr][bestz] - disk_density(rho_axis[bestr-1], 
                   z, M_gas, 0.4*z0)*T_cl_grid[bestr-1][bestz])
-            drho = rho_axis[bestr] - rho_axis[bestr-1]
-            vphi2 = rho * (vphis[bestz](rho) + 1/disk_density(rho, z, M_gas,
+            vphi2 = rho * (dphi/drho + 1/disk_density(rho, z, M_gas,
                     0.4*z0) * dP/drho)
             vphi = abs(vphi2)**0.5
             vz = vr = 0
@@ -393,15 +385,9 @@ def set_velocities(coords, T_cl_grid):
             vz = nprand.normal(scale=sigmaz**0.5)
             vr = nprand.normal(scale=sigmaz**0.5)
             vphi = nprand.normal(scale=sigmap**0.5)
-            if(bestz not in vphis):
-                ds = np.zeros(N_rho)
-                for j in range(1, N_rho):
-                    dphi = phi_grid[j][bestz]-phi_grid[j-1][bestz]
-                    drho = rho_axis[j]-rho_axis[j-1]
-                    ds[j] = dphi/drho
-                ds[0] = ds[1]
-                vphis[bestz] = interp1d(rho_axis, ds, kind='cubic')
-            vphi += (rho * vphis[bestz](rho))**0.5
+            dphi = phi_grid[bestr][bestz]-phi_grid[bestr-1][bestz]
+            drho = rho_axis[bestr]-rho_axis[bestr-1]
+            vphi += (rho * dphi/drho)**0.5
         else:
             sigmaz = sz_grid[2][bestr][bestz]
             sigmap = sphi_grid[2][bestr][bestz]
