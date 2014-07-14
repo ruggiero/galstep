@@ -346,10 +346,22 @@ def generate_sigma_grids(T_cl_grid):
 
 def set_velocities(coords, T_cl_grid):
     sz_grid, sphi_grid, aux_grid = generate_sigma_grids(T_cl_grid)
+    # Avoiding numerical problems. They only occur at a minor amount
+    # of points, anyway. I set the values to a small number in order
+    # to avoid problems while sampling from the gaussian distribution.
+    sphi_grid[np.isnan(sphi_grid)] = 1.0e-5;
+    sphi_grid[sphi_grid == np.inf] = 1.0e-5;
+    sphi_grid[sphi_grid == -np.inf] = 1.0e-5;
+    sphi_grid[sphi_grid == 0] = 1.0e-5;
+
+    aux_grid[np.isnan(aux_grid)] = 1.0e-5;
+    aux_grid[aux_grid == np.inf] = 1.0e-5;
+    aux_grid[aux_grid == -np.inf] = 1.0e-5;
+    aux_grid[aux_grid == 0] = 1.0e-5;
+
     # Dictionary to hold interpolator functions for the circular velocity
     # of the disk, one function per value of z. They are created on the run,
     # to avoid creating functions for values of z which are not used.
-    vphis = {}
     vels = np.zeros((N_total, 3))
     for i, part in enumerate(coords):
         x = part[0]
