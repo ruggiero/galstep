@@ -234,8 +234,8 @@ def interpolate(value, axis):
 def fill_potential_grid(coords_disk):
     ps = []
     # Indexes are randomly distributed across processors for higher
-    # performance. It takes longer to calculate a multipolar expansion
-    # at large radii. ip stands for 'index pair'.
+    # performance. The tree takes longer to calculate the potential
+    # at small radii. ip stands for 'index pair'.
     ip = nprand.permutation(list(product(range(N_rho), range(Nz))))
     print "Building gravity tree..."
     gravtree = oct_tree(200*a_halo*2)
@@ -317,6 +317,7 @@ def generate_sigma_grids(T_cl_grid):
         sz_grid[2][i][Nz-1] = sz_grid[2][i][Nz-2]
 
     sphi_grid = np.zeros((3, N_rho, Nz))
+    aux_grid = np.zeros((N_rho, Nz))
     for i in range(1, N_rho-1):
         for j in range(Nz):
             r0 = (rho_axis[i]**2 + z_axis[j]**2)**0.5
@@ -330,6 +331,8 @@ def generate_sigma_grids(T_cl_grid):
                 halo_density(r0)*sz_grid[0][i][j]) / drho +
                 rho_axis[i] * dphi/drho)
             sphi_grid[1][i][j] = sz_grid[1][i][j] / gamma2
+            aux_grid[i][j] = (sz_grid[1][i][j] + rho_axis[i]/disk_density(rho_axis[i], z_axis[j], M_disk, z0) * (sz_grid[1][i+1][j]*disk_density(rho_axis[i+1], z_axis[j], M_disk, z0) - sz_grid[1][i][j]*disk_density(rho_axis[i], z_axis[j], M_disk, z0)) / drho + rho_axis[i] * dphi/drho)
+
             sphi_grid[2][i][j] = (sz_grid[2][i][j] + rho_axis[i]/bulge_density(r0) *
                 (bulge_density(r1)*sz_grid[2][i+1][j] - 
                 bulge_density(r0)*sz_grid[2][i][j]) / drho +
@@ -337,12 +340,12 @@ def generate_sigma_grids(T_cl_grid):
             for k in range(3):
                 sphi_grid[k][0][j] = sphi_grid[k][1][j]
                 sphi_grid[k][N_rho-1][j] = sphi_grid[k][N_rho-3][j]
-    return sz_grid, sphi_grid
+    return sz_grid, sphi_grid, aux_grid
 
 
 
 def set_velocities(coords, T_cl_grid):
-    sz_grid, sphi_grid = generate_sigma_grids(T_cl_grid)
+    sz_grid, sphi_grid, aux_grid = generate_sigma_grids(T_cl_grid)
     # Dictionary to hold interpolator functions for the circular velocity
     # of the disk, one function per value of z. They are created on the run,
     # to avoid creating functions for values of z which are not used.
@@ -391,9 +394,7 @@ def set_velocities(coords, T_cl_grid):
             vz = nprand.normal(scale=sigmaz**0.5)
             vr = nprand.normal(scale=sigmaz**0.5)
             vphi = nprand.normal(scale=sigmap**0.5)
-            dphi = phi_grid[bestr][bestz]-phi_grid[bestr-1][bestz]
-            drho = rho_axis[bestr]-rho_axis[bestr-1]
-            vphi += (rho * dphi/drho)**0.5
+            vphi += (aux_grid[bestr][bestz] - sigmap)**0.5
         else:
             sigmaz = sz_grid[2][bestr][bestz]
             sigmap = sphi_grid[2][bestr][bestz]
