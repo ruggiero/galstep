@@ -3,8 +3,6 @@
  
 * NumPy (python-numpy)
 * SciPy (python-scipy)
-* Cython (cython), higher than 0.17.4
-* python-dev
 
 
 ## Installation

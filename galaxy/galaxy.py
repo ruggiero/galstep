@@ -13,7 +13,7 @@ from multiprocessing import Process, Array
 from argparse import ArgumentParser as parser
 from itertools import product
 
-from optimized_functions import phi_disk
+from treecode import oct_tree, potential
 from snapwrite import process_input, write_snapshot
 syspath.append(path.join(path.dirname(__file__), '..', 'misc'))
 from units import temp_to_internal_energy
@@ -87,14 +87,16 @@ def generate_galaxy():
     global phi_grid
     print "Setting positions..."
     coords_halo = set_halo_positions()
-    coords_disk = set_disk_positions(N_disk, z0)
+    coords_stars = set_disk_positions(N_disk, z0)
     coords_bulge = set_bulge_positions()
     if(gas):
         coords_gas = set_disk_positions(N_gas, 0.4*z0)
-        coords = np.concatenate((coords_gas, coords_halo, coords_disk,
+        coords = np.concatenate((coords_gas, coords_halo, coords_stars,
                                  coords_bulge))
+        coords_disk = np.concatenate((coords_gas, coords_stars))
     else:
-        coords = np.concatenate((coords_halo, coords_disk, coords_bulge))
+        coords = np.concatenate((coords_halo, coords_stars, coords_bulge))
+        coords_disk = coords_stars
 
     if path.isfile('potential_data.txt'):
         if not force_yes:
@@ -109,10 +111,10 @@ def generate_galaxy():
             phi_grid = np.loadtxt('potential_data.txt')
         else:
             remove('potential_data.txt')
-            fill_potential_grid()
+            fill_potential_grid(coords_disk)
             np.savetxt('potential_data.txt', phi_grid)
     else:
-        fill_potential_grid()
+        fill_potential_grid(coords_disk)
         np.savetxt('potential_data.txt', phi_grid)
     if(gas):
         print "Setting temperatures..."
@@ -229,29 +231,33 @@ def interpolate(value, axis):
         return index
 
 
-def fill_potential_grid():
+def fill_potential_grid(coords_disk):
     ps = []
     # Indexes are randomly distributed across processors for higher
     # performance. It takes longer to calculate a multipolar expansion
     # at large radii. ip stands for 'index pair'.
     ip = nprand.permutation(list(product(range(N_rho), range(Nz))))
-    print ("Filling potential grid. This takes a while, even after thorough\n"
-           "optimization.")
+    print "Building gravity tree..."
+    gravtree = oct_tree(200*a_halo*2)
+    for i, part in enumerate(coords_disk):
+        if i % len(coords_disk)/1000 == 0:
+            prog = 100*i/len(coords_disk)
+            sys.stdout.write("Gravtree, %.1f%% done\r" % prog)
+            sys.stdout.flush()
+        gravtree.insert(part, M_disk/N_disk)
+    print ("Filling potential grid...")
     def loop(n_loop, N_CORES):
         for i in range(n_loop*N_rho*Nz/N_CORES, (1+n_loop)*N_rho*Nz/N_CORES):
-            if(i % 50 == 0):
-                print "%1.1f%% done at core %d" % (float(i-n_loop*N_rho*Nz/N_CORES) /
-                    (N_rho*Nz/N_CORES) / 0.01, n_loop + 1)
+            if i % int(N_rho*Nz/N_cores/1000) == 0:
+                prog = 100*float(i-n_loop*N_rho*Nz/N_CORES)/(N_rho*Nz/N_CORES)
+                print "%1.1f%% done at core %d" % (prog, n_loop+1)
             m = ip[i][0]
             n = ip[i][1]
             r = (rho_axis[m]**2 + z_axis[n]**2)**0.5
             shared_phi_grid[m][n] += dehnen_potential(r, M_halo, a_halo,
                 halo_core)
-            shared_phi_grid[m][n] += phi_disk(rho_axis[m], z_axis[n],
-                M_disk, Rd, z0)
-            if(gas):
-                shared_phi_grid[m][n] += phi_disk(rho_axis[m], z_axis[n],
-                    M_gas, Rd, 0.4*z0)
+            shared_phi_grid[m][n] += potential(np.array((rho_axis[m], 0,
+                z_axis[n])), gravtree)
             shared_phi_grid[m][n] += dehnen_potential(r, M_bulge, a_bulge,
                 bulge_core)
     shared_phi_grid = [Array('f', phi_grid[i]) for i in range(len(phi_grid))]
