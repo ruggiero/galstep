@@ -33,3 +33,15 @@
 
 # z0 (height scale factor for the disk)
 0.7
+
+# z0_gas (in units of z0, 1 means z0_gas = z0)
+0.4
+
+# Does the halo follow a core density profile?
+False
+
+# Does the bulge follow a core density profile?
+False
+
+# Conversion factor from sigma_z to sigma_r for the disk
+0.82
