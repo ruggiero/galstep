@@ -240,7 +240,7 @@ def fill_potential_grid(coords_disk):
   gravtree = oct_tree(200*a_halo*2)
   for i, part in enumerate(coords_disk):
     prog = 100*float(i)/len(coords_disk)
-    stdout.write("Gravtree, %.2f%% done\r" % prog)
+    stdout.write("%.2f%% done\r" % prog)
     stdout.flush()
     gravtree.insert(part, M_disk/N_disk)
   print ("Filling potential grid...")
