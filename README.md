@@ -25,16 +25,12 @@ be ready for execution.
 
     optional arguments:
       -h, --help    show this help message and exit
-      --halo-core   Sets the density profile for the halo to have a core.
-      --bulge-core  The same, but for the bulge.
+      --nogas       Generates a galaxy without gas.
       -cores CORES  The number of cores to use during the potential canculation.
-                    Default is 1. Make sure this number is a factor of N_rho and
-                    N_z.
-      -temp TEMP    Initial gaseous disk temperature. Must be chosen wisely to
-                    guarantee that the disk won't explode or collapse. Default is
-                    8000.
+                    Default is 1. Make sure this number is a factor of N_rho*N_z.
       --force-yes   Don't ask if you want to use the existing potential_data.txt
-                    file. Might be useful to run the script from another script.
+                    file. Might be useful for automating the execution of the
+                    script.
       -o init.dat   The name of the output file.
 
 
