@@ -2,7 +2,7 @@ import numpy as np
 from collections import defaultdict
 
 
-G = 44923.53
+G = 43007.1
 deltas = np.array([[1, 1, 1], [-1, 1, 1],
                    [1, -1, 1], [1, 1, -1],
                    [-1, -1, 1], [-1, 1, -1],

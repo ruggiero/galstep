@@ -20,7 +20,7 @@ syspath.append(path.join(path.dirname(__file__), '..', 'misc'))
 from units import temp_to_internal_energy
 
 
-G = 44923.53
+G = 43007.1
 
 
 def main():
@@ -322,32 +322,36 @@ def generate_sigma_grids(T_cl_grid):
     sz_grid[2][i][Nz-1] = sz_grid[2][i][Nz-2]
 
   sphi_grid = np.zeros((3, N_rho, Nz))
-  aux_grid = np.zeros((N_rho, Nz))
+  aux_grid = np.zeros(N_rho)
   for i in range(1, N_rho-1):
     for j in range(Nz):
       r0 = (rho_axis[i]**2 + z_axis[j]**2)**0.5
       r1 = (rho_axis[i+1]**2 + z_axis[j]**2)**0.5
       drho = rho_axis[i+1] - rho_axis[i]
       dphi = phi_grid[i+1][j] - phi_grid[i][j]
-      kappa2 = 3/rho_axis[i] * dphi/drho + d2phi_drho2(i, j)
-      gamma2 = 4/(kappa2*rho_axis[i]) * dphi/drho
       sphi_grid[0][i][j] = (sz_grid[0][i][j] + rho_axis[i]/halo_density(r0) * 
         (halo_density(r1)*sz_grid[0][i+1][j] - 
         halo_density(r0)*sz_grid[0][i][j]) / drho + rho_axis[i] * dphi/drho)
-      sphi_grid[1][i][j] = sz_grid[1][i][j] / gamma2
-      aux_grid[i][j] = (sz_grid[1][i][j] + 
-        rho_axis[i]/disk_density(rho_axis[i], z_axis[j], M_disk, z0) * 
-        (sz_grid[1][i+1][j]*disk_density(rho_axis[i+1], z_axis[j], M_disk, z0) -
-        sz_grid[1][i][j]*disk_density(rho_axis[i], z_axis[j], M_disk, z0)) /
-        drho + rho_axis[i] * dphi/drho)
+      if(j == 0):
+        kappa2 = 3/rho_axis[i] * dphi/drho + d2phi_drho2(i, j)
+        gamma2 = 4/(kappa2*rho_axis[i]) * dphi/drho
+        sphi_grid[1][i][j] = sz_grid[1][i][j] / gamma2
+        aux_grid[i] = (sz_grid[1][i][j] + 
+          rho_axis[i]/disk_density(rho_axis[i], z_axis[j], M_disk, z0) * 
+          (sz_grid[1][i+1][j]*disk_density(rho_axis[i+1], z_axis[j], M_disk, z0) -
+          sz_grid[1][i][j]*disk_density(rho_axis[i], z_axis[j], M_disk, z0)) /
+          drho + rho_axis[i] * dphi/drho)
+        if i == N_rho-2:
+          sphi_grid[1][0][j] = sphi_grid[1][1][j]
+          sphi_grid[1][N_rho-1][j] = sphi_grid[1][N_rho-2][j]
+          aux_grid[0] = aux_grid[1]
+          aux_grid[N_rho-1] = aux_grid[N_rho-2]
       sphi_grid[2][i][j] = (sz_grid[2][i][j] + rho_axis[i]/bulge_density(r0) * 
         (bulge_density(r1)*sz_grid[2][i+1][j] - 
         bulge_density(r0)*sz_grid[2][i][j]) / drho + rho_axis[i] * dphi/drho)
-      for k in range(3):
+      for k in [0, 2]:
         sphi_grid[k][0][j] = sphi_grid[k][1][j]
-        sphi_grid[k][N_rho-1][j] = sphi_grid[k][N_rho-3][j]
-      aux_grid[0][j] = aux_grid[1][j]
-      aux_grid[N_rho-1][j] = aux_grid[N_rho-2][j]
+        sphi_grid[k][N_rho-1][j] = sphi_grid[k][N_rho-2][j]
   return sz_grid, sphi_grid, aux_grid
 
 
@@ -356,14 +360,14 @@ def set_velocities(coords, T_cl_grid):
   # Avoiding numerical problems. They only occur at a minor amount
   # of points, anyway. I set the values to a small number in order
   # to avoid problems while sampling from the gaussian distribution.
-  sphi_grid[np.isnan(sphi_grid)] = 1.0e-5;
-  sphi_grid[sphi_grid == np.inf] = 1.0e-5;
-  sphi_grid[sphi_grid <= 0] = 1.0e-5;
+#  sphi_grid[np.isnan(sphi_grid)] = 1.0e-5;
+#  sphi_grid[sphi_grid == np.inf] = 1.0e-5;
+#  sphi_grid[sphi_grid <= 0] = 1.0e-5;
 
-  aux_grid[np.isnan(aux_grid)] = 1.0e-5;
-  aux_grid[aux_grid == np.inf] = 1.0e-5;
-  aux_grid[aux_grid < sphi_grid[1]] = (sphi_grid[1][aux_grid < sphi_grid[1]] + 
-    1.0e-5)
+#  aux_grid[np.isnan(aux_grid)] = 1.0e-5;
+#  aux_grid[aux_grid == np.inf] = 1.0e-5;
+#  aux_grid[aux_grid < sphi_grid[1]] = (sphi_grid[1][aux_grid < sphi_grid[1]] + 
+#    1.0e-5)
 
   vels = np.zeros((N_total, 3))
   for i, part in enumerate(coords):
@@ -401,11 +405,11 @@ def set_velocities(coords, T_cl_grid):
       vphi = nprand.normal(scale=sigmap**0.5)
     elif(i >= N_gas+N_halo and i < N_gas+N_halo+N_disk):
       sigmaz = sz_grid[1][bestr][bestz]
-      sigmap = sphi_grid[1][bestr][bestz]
+      sigmap = sphi_grid[1][bestr][0]
       vz = nprand.normal(scale=sigmaz**0.5)
       vr = nprand.normal(scale=factor*sigmaz**0.5)
       vphi = nprand.normal(scale=factor*sigmap**0.5)
-      vphi += (aux_grid[bestr][bestz] - sigmap)**0.5
+      vphi += (aux_grid[bestr] - sigmap)**0.5
     else:
       sigmaz = sz_grid[2][bestr][bestz]
       sigmap = sphi_grid[2][bestr][bestz]
