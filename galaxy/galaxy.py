@@ -1,8 +1,7 @@
 # Run python galaxy.py --help for a description.
 
 from os import path, remove
-from sys import exit, stdout
-from sys import path as syspath
+from sys import exit, stdout, path as syspath
 from time import sleep
 
 import numpy as np
@@ -36,20 +35,21 @@ def init():
   global N_total, M_total
   global phi_grid, rho_axis, z_axis, N_rho, Nz
   global halo_core, bulge_core, N_CORES, force_yes, output, gas, factor
-  flags = parser(description="Generates an initial conditions file\
-                for a galaxy simulation with halo, stellar\
-                disk, gaseous disk and bulge components.")
+  flags = parser(description="Generates an initial conditions file for a\
+                              galaxy simulation with halo, stellar disk,\
+                              gaseous disk and bulge components.")
   flags.add_argument('--nogas', help='Generates a galaxy without gas.',
-             action='store_true')
+                     action='store_true')
   flags.add_argument('-cores', help='The number of cores to use during the\
-             potential canculation. Default is 1. Make sure this\
-             number is a factor of N_rho*N_z.', default=1)
+                                     potential canculation. Make sure this\
+                                     number is a factor of N_rho*N_z.',
+                     default=1)
   flags.add_argument('--force-yes', help='Don\'t ask if you want to use the\
-            existing potential_data.txt file. Might be useful for\
-            automating the execution of the script.',
-            action='store_true')
+                                          existing potential_data.txt file.\
+                                          Useful for automating the execution\
+                                          of the script.', action='store_true')
   flags.add_argument('-o', help='The name of the output file.',
-             metavar="init.dat", default="init.dat")
+                     metavar="init.dat", default="init.dat")
   args = flags.parse_args()
   gas = not args.nogas
   N_CORES = int(args.cores)
@@ -72,11 +72,11 @@ def init():
     M_gas = 0
   M_total = M_disk + M_bulge + M_halo + M_gas
   N_total = N_disk + N_bulge + N_halo + N_gas
-  N_rho = Nz = 2000 # Make sure N_CORES is a factor of this number!
+  N_rho = Nz = 2000 # Make sure N_CORES is a factor of N_rho*Nz.
   phi_grid = np.zeros((N_rho, Nz))
-  rho_max = 200 * a_halo
+  rho_max = 300 * a_halo
   # This has to go far so I can estimate the integrals below.
-  z_max = 2000 * a_halo 
+  z_max = 3000 * a_halo 
   rho_axis = np.logspace(-2, log10(rho_max), N_rho)
   z_axis = np.logspace(-2, log10(z_max), Nz)
 
@@ -90,7 +90,7 @@ def generate_galaxy():
   if(gas):
     coords_gas = set_disk_positions(N_gas, z0_gas)
     coords = np.concatenate((coords_gas, coords_halo, coords_stars,
-                 coords_bulge))
+                             coords_bulge))
     coords_disk = np.concatenate((coords_gas, coords_stars))
   else:
     coords = np.concatenate((coords_halo, coords_stars, coords_bulge))
@@ -98,8 +98,8 @@ def generate_galaxy():
 
   if path.isfile('potential_data.txt'):
     if not force_yes:
-      print ("Use existing potential tabulation in potential_data.txt? "+
-           "Make sure it\nrefers to the current parameters. (y/n)")
+      print ("Use existing potential tabulation in potential_data.txt?\
+              Make sure it refers to the current parameters. (y/n)")
       ans = raw_input()
       while ans not in "yn":
         print "Please give a proper answer. (y/n)"
@@ -123,7 +123,7 @@ def generate_galaxy():
     vels = set_velocities(coords, T_cl_grid) 
   else:
     print "Setting velocities..."
-    vels = set_velocities(coords, np.empty(0)) 
+    vels = set_velocities(coords, None) 
   coords = np.array(coords, order='C')
   coords.shape = (1, -1) # Linearizing the array.
   vels = np.array(vels, order='C')
@@ -137,7 +137,7 @@ def generate_galaxy():
 def dehnen_inverse_cumulative(Mc, M, a, core):
   if(core):
     return ((a * (Mc**(2/3.)*M**(4/3.) + Mc*M + Mc**(4/3.)*M**(2/3.))) /
-        (Mc**(1/3.) * M**(2/3.) * (M-Mc)))
+            (Mc**(1/3.) * M**(2/3.) * (M-Mc)))
   else:
     return (a * ((Mc*M)**0.5 + Mc)) / (M-Mc)
 
@@ -177,8 +177,6 @@ def set_halo_positions():
   xs = radii * sin(thetas) * cos(phis)
   ys = radii * sin(thetas) * sin(phis)
   zs = radii * cos(thetas)
-
-  # Older NumPy versions freak out without this line.
   coords = np.column_stack((xs, ys, zs))
   return coords
 
@@ -197,7 +195,7 @@ def set_bulge_positions():
 
 def set_disk_positions(N, z0):
   radii = np.zeros(N)
-  # The maximum radius is restricted to 60 kpc
+  # The maximum radius is restricted to 60 kpc.
   sample = nprand.sample(N) * disk_radial_cumulative(60)
   for i, s in enumerate(sample):
     radii[i] = disk_radial_inverse_cumulative(s)
@@ -279,10 +277,10 @@ def fill_potential_grid(coords_disk):
       phi_grid[i][j] = shared_phi_grid[i][j]
 
 
-# Calculates the double partial derivative of the potential
-# as to rho, at the point (rho_axis[i], z_axis[j]). As the grid
-# is unevenly spaced, a more complicated formula must be used.
-# Formula taken from http://mathformeremortals.wordpress.com/
+# Calculates the second radial partial derivative of the potential
+# at the point (rho_axis[i], z_axis[j]). As the grid is unevenly spaced,
+# a more complicated formula must be used. Formula taken from
+# http://mathformeremortals.wordpress.com/
 # 2013/01/12/a-numerical-second-derivative-from-three-points/
 def d2phi_drho2(i, j):
   x1, x2, x3 = rho_axis[i-1], rho_axis[i], rho_axis[i+1]
@@ -292,37 +290,30 @@ def d2phi_drho2(i, j):
   return np.dot(v1, v2)
 
 
-def generate_sigma_grids(T_cl_grid):
+def generate_sigma_grids():
   # The [0], [1] and [2] components of this grid will refer to the halo,
   # disk and bulge, respectively. The calculation being performed here
   # follows the prescription found in Springel & White, 1999.
   sz_grid = np.zeros((3, N_rho, Nz))
   ys = np.zeros((3, N_rho, Nz)) # Integrand array.
+  # ys is the integrand array. Filling it.
   for i in range(N_rho):
-    for j in range(1, Nz):
+    for j in range(0, Nz-1):
       r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
-      dz = z_axis[j] - z_axis[j-1]
-      dphi = phi_grid[i][j] - phi_grid[i][j-1]
-
-      # Filling the integrand array.
+      dz = z_axis[j+1] - z_axis[j]
+      dphi = phi_grid[i][j+1] - phi_grid[i][j]
       ys[0][i][j] = halo_density(r) * dphi/dz 
       ys[1][i][j] = disk_density(rho_axis[i], z_axis[j], M_disk, z0) * dphi/dz
       ys[2][i][j] = bulge_density(r) * dphi/dz 
-    ys[0][i][0] = ys[0][i][1]
-    ys[1][i][0] = ys[1][i][1]
-    ys[2][i][0] = ys[2][i][1]
     for j in range(0, Nz-1):
       r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
       sz_grid[0][i][j] = 1/halo_density(r) * np.trapz(ys[0][i][j:], z_axis[j:])
       sz_grid[1][i][j] = (1/disk_density(rho_axis[i], z_axis[j], M_disk, z0) * 
         np.trapz(ys[1][i][j:], z_axis[j:]))
       sz_grid[2][i][j] = 1/bulge_density(r) * np.trapz(ys[2][i][j:], z_axis[j:])
-    sz_grid[0][i][Nz-1] = sz_grid[0][i][Nz-2]
-    sz_grid[1][i][Nz-1] = sz_grid[1][i][Nz-2]
-    sz_grid[2][i][Nz-1] = sz_grid[2][i][Nz-2]
 
   sphi_grid = np.zeros((3, N_rho, Nz))
-  aux_grid = np.zeros(N_rho)
+#  aux_grid = np.zeros(N_rho)
   for i in range(1, N_rho-1):
     for j in range(Nz):
       r0 = (rho_axis[i]**2 + z_axis[j]**2)**0.5
@@ -336,37 +327,36 @@ def generate_sigma_grids(T_cl_grid):
         kappa2 = 3/rho_axis[i] * dphi/drho + d2phi_drho2(i, j)
         gamma2 = 4/(kappa2*rho_axis[i]) * dphi/drho
         sphi_grid[1][i][j] = sz_grid[1][i][j] / gamma2
-        aux_grid[i] = (sz_grid[1][i][j] + 
-          rho_axis[i]/disk_density(rho_axis[i], z_axis[j], M_disk, z0) * 
-          (sz_grid[1][i+1][j]*disk_density(rho_axis[i+1], z_axis[j], M_disk, z0) -
-          sz_grid[1][i][j]*disk_density(rho_axis[i], z_axis[j], M_disk, z0)) /
-          drho + rho_axis[i] * dphi/drho)
+#        aux_grid[i] = (sz_grid[1][i][j] + 
+#          rho_axis[i]/disk_density(rho_axis[i], z_axis[j], M_disk, z0) * 
+#          (sz_grid[1][i+1][j]*disk_density(rho_axis[i+1], z_axis[j], M_disk, z0) -
+#          sz_grid[1][i][j]*disk_density(rho_axis[i], z_axis[j], M_disk, z0)) /
+#          drho + rho_axis[i] * dphi/drho)
         if i == N_rho-2:
           sphi_grid[1][0][j] = sphi_grid[1][1][j]
-          sphi_grid[1][N_rho-1][j] = sphi_grid[1][N_rho-2][j]
-          aux_grid[0] = aux_grid[1]
-          aux_grid[N_rho-1] = aux_grid[N_rho-2]
+#          aux_grid[0] = aux_grid[1]
+#          aux_grid[N_rho-1] = aux_grid[N_rho-2]
       sphi_grid[2][i][j] = (sz_grid[2][i][j] + rho_axis[i]/bulge_density(r0) * 
         (bulge_density(r1)*sz_grid[2][i+1][j] - 
         bulge_density(r0)*sz_grid[2][i][j]) / drho + rho_axis[i] * dphi/drho)
       for k in [0, 2]:
         sphi_grid[k][0][j] = sphi_grid[k][1][j]
-        sphi_grid[k][N_rho-1][j] = sphi_grid[k][N_rho-2][j]
-  return sz_grid, sphi_grid, aux_grid
+#  return sz_grid, sphi_grid, aux_grid
+  return sz_grid, sphi_grid
 
 
 def set_velocities(coords, T_cl_grid):
-  sz_grid, sphi_grid, aux_grid = generate_sigma_grids(T_cl_grid)
+  sz_grid, sphi_grid = generate_sigma_grids()
   # Avoiding numerical problems. They only occur at a minor amount
-  # of points, anyway. I set the values to a small number in order
-  # to avoid problems while sampling from the gaussian distribution.
+  # of points, anyway. I set the values to a small number so I can
+  # successfuly sample from the gaussian distributions ahead.
   sphi_grid[np.isnan(sphi_grid)] = 1.0e-5;
   sphi_grid[sphi_grid == np.inf] = 1.0e-5;
   sphi_grid[sphi_grid <= 0] = 1.0e-5;
 
-  aux_grid[np.isnan(aux_grid)] = 1.0e-5;
-  aux_grid[aux_grid == np.inf] = 1.0e-5;
-  aux_grid[aux_grid <= sphi_grid[1][0]] = (sphi_grid[1][aux_grid <= sphi_grid[1][0]] + 1.0e-5)
+#  aux_grid[np.isnan(aux_grid)] = 1.0e-5;
+#  aux_grid[aux_grid == np.inf] = 1.0e-5;
+#  aux_grid[aux_grid <= sphi_grid[1][0]] = (sphi_grid[1][aux_grid <= sphi_grid[1][0]] + 1.0e-5)
 
   vels = np.zeros((N_total, 3))
   for i, part in enumerate(coords):
@@ -374,8 +364,7 @@ def set_velocities(coords, T_cl_grid):
     y = part[1]
     z = abs(part[2])
     rho = (x**2 + y**2)**0.5
-    if rho < rho_axis[0]:
-      rho = rho_axis[0]
+    r = (rho**2 + z**2)**0.5
     if(x > 0 and y > 0):
       phi = arctan(y/x)
     elif(x < 0 and y > 0):
@@ -407,8 +396,10 @@ def set_velocities(coords, T_cl_grid):
       sigmap = sphi_grid[1][bestr][0]
       vz = nprand.normal(scale=sigmaz**0.5)
       vr = nprand.normal(scale=factor*sigmaz**0.5)
-      vphi = nprand.normal(scale=factor*sigmap**0.5)
-      vphi += (aux_grid[bestr] - sigmap)**0.5
+      dphi = phi_grid[bestr][bestz] - phi_grid[bestr-1][bestz]
+      drho = rho_axis[bestr] - rho_axis[bestr-1]
+      vphi = (rho*dphi/drho)**0.5 + nprand.normal(scale=factor*sigmap**0.5)
+#      vphi += (aux_grid[bestr] - sigmap)**0.5
     else:
       sigmaz = sz_grid[2][bestr][bestz]
       sigmap = sphi_grid[2][bestr][bestz]
