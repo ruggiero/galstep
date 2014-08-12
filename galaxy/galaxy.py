@@ -359,6 +359,7 @@ def set_velocities(coords, T_cl_grid):
 #  aux_grid[aux_grid <= sphi_grid[1][0]] = (sphi_grid[1][aux_grid <= sphi_grid[1][0]] + 1.0e-5)
 
   vels = np.zeros((N_total, 3))
+  vphis = {}
   for i, part in enumerate(coords):
     x = part[0]
     y = part[1]
@@ -396,10 +397,12 @@ def set_velocities(coords, T_cl_grid):
       sigmap = sphi_grid[1][bestr][0]
       vz = nprand.normal(scale=sigmaz**0.5)
       vr = nprand.normal(scale=factor*sigmaz**0.5)
-      dphi = phi_grid[bestr][bestz] - phi_grid[bestr-1][bestz]
-      drho = rho_axis[bestr] - rho_axis[bestr-1]
-      vphi = (rho*dphi/drho)**0.5 + nprand.normal(scale=factor*sigmap**0.5)
-#      vphi += (aux_grid[bestr] - sigmap)**0.5
+      vphi = nprand.normal(scale=factor*sigmap**0.5)
+      if(bestz not in vphis):
+        tck = inter.splrep(rho_axis, phi_grid[:, bestz])
+        vphis[bestz] = inter.interp1d(rho_axis, inter.splev(rho_axis, tck, der=1))
+      if(vphis[bestz](rho) > 0):
+        vphi += (rho * vphis[bestz](rho))**0.5
     else:
       sigmaz = sz_grid[2][bestr][bestz]
       sigmap = sphi_grid[2][bestr][bestz]
