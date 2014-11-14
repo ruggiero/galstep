@@ -8,10 +8,12 @@ import numpy as np
 import numpy.random as nprand
 from numpy import cos, sin, pi, arccos, log10, exp, arctan, cosh
 from scipy.optimize import brentq
+import scipy.interpolate as interp
 from bisect import bisect_left
 from multiprocessing import Process, Array
 from argparse import ArgumentParser as parser
 from itertools import product
+import scipy.interpolate as inter
 
 from treecode import oct_tree, potential
 from snapwrite import process_input, write_snapshot
@@ -72,7 +74,7 @@ def init():
     M_gas = 0
   M_total = M_disk + M_bulge + M_halo + M_gas
   N_total = N_disk + N_bulge + N_halo + N_gas
-  N_rho = Nz = 2000 # Make sure N_CORES is a factor of N_rho*Nz.
+  N_rho = Nz = 64 # Make sure N_CORES is a factor of N_rho*Nz.
   phi_grid = np.zeros((N_rho, Nz))
   rho_max = 300 * a_halo
   # This has to go far so I can estimate the integrals below.

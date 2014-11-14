@@ -1,16 +1,30 @@
+## DEPRECATED!
+
+After dedicating a lot of time to this method, I have found that,
+for the parameters I was interested in, the results it generates for
+the halo are quite gross near its center. The hyphothesis that the halo
+velocity distributions are approximately gaussian is far from reasonable,
+as they display increasingly high kurtosis as you get closer to r =
+0. In practice, the nucleus of the generated halo simply explodes when
+you actually simulate it.
+
+I moved on from this method to the iteractive method from Radionov,
+Athanassoula & Sotnikova (2009), which is both easier to implement and
+more precise. You can find my new code under the repository 'galaxy-iter'.
+
+
+## About
+
+This code uses the algorithm found in Springel & Di Matteo & Hernquist
+(2005) for generating the initial conditions for a galaxy simulation
+with the code GADGET-2, including a gas component with temperatures
+calculated for guaranteeing hydrodynamic equilibrium.
+
+
 ## Required libraries
-(and the names of the packages in Ubuntu)
  
 * NumPy (python-numpy)
 * SciPy (python-scipy)
-
-
-## Installation
-
-galaxy.py uses a custom Cython library that has to be compiled.
-For compiling, just cd to /galaxy and type 'make'. A new file, named
-optimized_funcions.so, will be created, and then galaxy.py will
-be ready for execution.
 
 
 ## Usage
@@ -42,6 +56,7 @@ A sample potential data file is provided for the parameters file included.
     Rafael Ruggiero
     Undergraduate student at Universidade de São Paulo (USP), Brazil
     Contact: bluewhale [at] cecm.usp.br
+
 
 ## Disclaimer
 
