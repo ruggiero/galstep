@@ -8,6 +8,7 @@ import numpy as np
 import numpy.random as nprand
 from numpy import cos, sin, pi, arccos, log10, exp, arctan, cosh
 from scipy.optimize import brentq
+from scipy import integrate
 import scipy.interpolate as interp
 from bisect import bisect_left
 from multiprocessing import Process, Array
@@ -309,10 +310,10 @@ def generate_sigma_grids():
       ys[2][i][j] = bulge_density(r) * dphi/dz 
     for j in range(0, Nz-1):
       r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
-      sz_grid[0][i][j] = 1/halo_density(r) * np.trapz(ys[0][i][j:], z_axis[j:])
+      sz_grid[0][i][j] = 1/halo_density(r) * integrate.simps(ys[0][i][j:], z_axis[j:])
       sz_grid[1][i][j] = (1/disk_density(rho_axis[i], z_axis[j], M_disk, z0) * 
-        np.trapz(ys[1][i][j:], z_axis[j:]))
-      sz_grid[2][i][j] = 1/bulge_density(r) * np.trapz(ys[2][i][j:], z_axis[j:])
+        integrate.simps(ys[1][i][j:], z_axis[j:]))
+      sz_grid[2][i][j] = 1/bulge_density(r) * integrate.simps(ys[2][i][j:], z_axis[j:])
 
   sphi_grid = np.zeros((3, N_rho, Nz))
 #  aux_grid = np.zeros(N_rho)
@@ -445,7 +446,7 @@ def set_temperatures(coords_gas):
             dphi/dz)
     ys[i][0] = ys[i][1]
     for j in range(0, Nz-1):
-      result = (np.trapz(ys[i][j:], z_axis[j:]) /
+      result = (integrate.simps(ys[i][j:], z_axis[j:]) /
             disk_density(rho_axis[i], z_axis[j], M_gas, z0_gas))
       temp_i = MP_OVER_KB * meanweight_i * result
       temp_n = MP_OVER_KB * meanweight_n * result
