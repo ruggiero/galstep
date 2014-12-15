@@ -10,7 +10,8 @@ you actually simulate it.
 
 I moved on from this method to the iteractive method from Radionov,
 Athanassoula & Sotnikova (2009), which is both easier to implement and
-more precise. You can find my new code under the repository 'galaxy-iter'.
+more precise, although it demands more computing power. You can find my
+new code under the repository 'galaxy-iter'.
 
 
 ## About
