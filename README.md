@@ -1,31 +1,22 @@
-## DEPRECATED!
-
-After dedicating a lot of time to this method, I have found that,
-for the parameters I was interested in, the results it generates for
-the halo are quite gross near its center. The hyphothesis that the halo
-velocity distributions are approximately gaussian is far from reasonable,
-as they display increasingly high kurtosis as you get closer to r =
-0. In practice, the nucleus of the generated halo simply explodes when
-you actually simulate it.
-
-I moved on from this method to the iteractive method from Radionov,
-Athanassoula & Sotnikova (2009), which is both easier to implement and
-more precise, although it demands more computing power. You can find my
-new code under the repository 'galaxy-iter'.
-
-
 ## About
 
 This code uses the algorithm found in Springel & Di Matteo & Hernquist
-(2005) for generating the initial conditions for a galaxy simulation
-with the code GADGET-2, including a gas component with temperatures
-calculated for guaranteeing hydrodynamic equilibrium.
+(2005) for generating the initial conditions for a disk galaxy simulation
+with the code GADGET-2, including a thin isothermal gas component which
+must me relaxed for a few hundred Myr to reach equilibrium.
+
+Important: this method fails to generate low mass halos (~10^10 solar
+masses) in equilibrium, since the velocity distribution for these near
+the center is strongly non gaussian. Also, note that if you run GADGET-2
+without any gas cooling, the gaseous disk will gain lots of energy over
+time due to the artificial viscosity, and will get a lot thicker.
 
 
 ## Required libraries
  
 * NumPy (python-numpy)
 * SciPy (python-scipy)
+* [pyGadgetReader](https://bitbucket.org/rthompson/pygadgetreader)
 
 
 ## Usage
@@ -47,9 +38,6 @@ calculated for guaranteeing hydrodynamic equilibrium.
                     file. Might be useful for automating the execution of the
                     script.
       -o init.dat   The name of the output file.
-
-
-A sample potential data file is provided for the parameters file included.
 
 
 ## Author
