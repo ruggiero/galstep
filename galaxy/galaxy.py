@@ -6,7 +6,7 @@ from time import sleep
 
 import numpy as np
 import numpy.random as nprand
-from numpy import cos, sin, pi, arccos, log10, exp, arctan, cosh
+from numpy import cos, sin, pi, arccos, log10, exp, arctan2, cosh
 from scipy.optimize import brentq
 from scipy import integrate
 import scipy.interpolate as interp
@@ -20,6 +20,7 @@ from treecode import oct_tree, potential
 from snapwrite import process_input, write_snapshot
 syspath.append(path.join(path.dirname(__file__), '..', 'misc'))
 from units import temp_to_internal_energy
+from pygadgetreader import *
 
 
 G = 43007.1
@@ -75,7 +76,7 @@ def init():
     M_gas = 0
   M_total = M_disk + M_bulge + M_halo + M_gas
   N_total = N_disk + N_bulge + N_halo + N_gas
-  N_rho = Nz = 64 # Make sure N_CORES is a factor of N_rho*Nz.
+  N_rho = Nz = 256 # Make sure N_CORES is a factor of N_rho*Nz.
   phi_grid = np.zeros((N_rho, Nz))
   rho_max = 300 * a_halo
   # This has to go far so I can estimate the integrals below.
@@ -94,10 +95,8 @@ def generate_galaxy():
     coords_gas = set_disk_positions(N_gas, z0_gas)
     coords = np.concatenate((coords_gas, coords_halo, coords_stars,
                              coords_bulge))
-    coords_disk = np.concatenate((coords_gas, coords_stars))
   else:
     coords = np.concatenate((coords_halo, coords_stars, coords_bulge))
-    coords_disk = coords_stars
 
   if path.isfile('potential_data.txt'):
     if not force_yes:
@@ -112,16 +111,16 @@ def generate_galaxy():
       phi_grid = np.loadtxt('potential_data.txt')
     else:
       remove('potential_data.txt')
-      fill_potential_grid(coords_disk)
+      fill_potential_grid(coords_stars, coords_gas) 
       np.savetxt('potential_data.txt', phi_grid)
   else:
-    fill_potential_grid(coords_disk)
+    fill_potential_grid(coords_stars, coords_gas)
     np.savetxt('potential_data.txt', phi_grid)
   if(gas):
     print "Setting temperatures..."
     U, T_cl_grid = set_temperatures(coords_gas) 
     print "Setting densitites..."
-    rho = set_densities(coords_gas)
+    rho = np.zeros(N_gas)
     print "Setting velocities..."
     vels = set_velocities(coords, T_cl_grid) 
   else:
@@ -231,7 +230,7 @@ def interpolate(value, axis):
     return index
 
 
-def fill_potential_grid(coords_disk):
+def fill_potential_grid(coords_stars, coords_gas):
   ps = []
   # Indexes are randomly distributed across processors for higher
   # performance. The tree takes longer to calculate the potential
@@ -239,11 +238,17 @@ def fill_potential_grid(coords_disk):
   ip = nprand.permutation(list(product(range(N_rho), range(Nz))))
   print "Building gravity tree..."
   gravtree = oct_tree(200*a_halo*2)
-  for i, part in enumerate(coords_disk):
-    prog = 100*float(i)/len(coords_disk)
-    stdout.write("%.2f%% done\r" % prog)
+  for i, part in enumerate(coords_stars):
+    prog = 100*float(i)/len(coords_stars)
+    stdout.write("%.2f%% done for the stellar disk\r" % prog)
     stdout.flush()
     gravtree.insert(part, M_disk/N_disk)
+  for i, part in enumerate(coords_gas):
+    prog = 100*float(i)/len(coords_gas)
+    stdout.write("%.2f%% done for the gaseous disk\r" % prog)
+    stdout.flush()
+    gravtree.insert(part, M_gas/N_gas)
+ 
   print ("Filling potential grid...")
   def loop(n_loop, N_CORES):
     for i in range(n_loop*N_rho*Nz/N_CORES, (1+n_loop)*N_rho*Nz/N_CORES):
@@ -257,7 +262,7 @@ def fill_potential_grid(coords_disk):
         gravtree)
       shared_phi_grid[m][n] += dehnen_potential(r, M_bulge, a_bulge, bulge_core)
   shared_phi_grid = [Array('f', phi_grid[i]) for i in range(len(phi_grid))]
-  prog = Array('f', [0, 0])
+  prog = Array('f', [0]*N_CORES)
   proc=[Process(target=loop, args=(n, N_CORES)) for n in range(N_CORES)]
   try:
     [p.start() for p in proc]
@@ -363,20 +368,14 @@ def set_velocities(coords, T_cl_grid):
 
   vels = np.zeros((N_total, 3))
   vphis = {}
+  phis = arctan2(coords[:,1], coords[:,0])
   for i, part in enumerate(coords):
     x = part[0]
     y = part[1]
     z = abs(part[2])
     rho = (x**2 + y**2)**0.5
     r = (rho**2 + z**2)**0.5
-    if(x > 0 and y > 0):
-      phi = arctan(y/x)
-    elif(x < 0 and y > 0):
-      phi = pi - arctan(-y/x)
-    elif(x < 0 and y < 0):
-      phi = pi + arctan(y/x)
-    elif(x > 0 and y < 0):
-      phi = 2 * pi - arctan(-y/x)
+    phi = phis[i]
     bestz = interpolate(z, z_axis)
     bestr = interpolate(rho, rho_axis)
     if(i < N_gas):
@@ -418,15 +417,6 @@ def set_velocities(coords, T_cl_grid):
   return vels
  
 
-def set_densities(coords_gas):
-  rhos = np.zeros(N_gas)
-  for i, part in enumerate(coords_gas):
-    rho = (part[0]**2 + part[1]**2)**0.5
-    z = abs(part[2])
-    rhos[i] = disk_density(rho, z, M_gas, z0_gas)
-  return rhos
-
-
 def set_temperatures(coords_gas):
   U_grid = np.zeros((N_rho, Nz))
   U = np.zeros(N_gas)
@@ -437,37 +427,12 @@ def set_temperatures(coords_gas):
   HYDROGEN_MASSFRAC = 0.76
   meanweight_n = 4.0 / (1 + 3 * HYDROGEN_MASSFRAC)
   meanweight_i = 4.0 / (3 + 5 * HYDROGEN_MASSFRAC)
-  ys = np.zeros((N_rho, Nz)) # Integrand array.
-  for i in range(N_rho):
-    for j in range(1, Nz):
-      dphi = phi_grid[i][j] - phi_grid[i][j-1]
-      dz = z_axis[j] - z_axis[j-1]
-      ys[i][j] = (disk_density(rho_axis[i], z_axis[j], M_gas, z0_gas) *
-            dphi/dz)
-    ys[i][0] = ys[i][1]
-    for j in range(0, Nz-1):
-      result = (integrate.simps(ys[i][j:], z_axis[j:]) /
-            disk_density(rho_axis[i], z_axis[j], M_gas, z0_gas))
-      temp_i = MP_OVER_KB * meanweight_i * result
-      temp_n = MP_OVER_KB * meanweight_n * result
-      if(temp_i > 1.0e4):
-        U_grid[i][j] = temp_to_internal_energy(temp_i)
-      else:
-        U_grid[i][j] = temp_to_internal_energy(temp_n)
-      T_cl_grid[i][j] = result
-    U_grid[i][-1] = U_grid[i][-2]
-    T_cl_grid[i][-1] = T_cl_grid[i][-2]
-  for i, part in enumerate(coords_gas):
-    rho = (part[0]**2 + part[1]**2)**0.5
-    z = abs(part[2])
-    bestz = interpolate(z, z_axis)
-    bestr = interpolate(rho, rho_axis)
-    U[i] = U_grid[bestr][bestz]
-  #U.fill(temp_to_internal_energy(disk_temp))
-  #if(disk_temp > 1.0e4):
-  #  T_cl_grid.fill(disk_temp / MP_OVER_KB / meanweight_i)
-  #else:
-  #  T_cl_grid.fill(disk_temp / MP_OVER_KB / meanweight_n)
+  disk_temp = 10000
+  U.fill(temp_to_internal_energy(disk_temp))
+  if(disk_temp >= 1.0e4):
+    T_cl_grid.fill(disk_temp / MP_OVER_KB / meanweight_i)
+  else:
+    T_cl_grid.fill(disk_temp / MP_OVER_KB / meanweight_n)
   return U, T_cl_grid
 
 

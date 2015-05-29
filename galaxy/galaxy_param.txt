@@ -1,32 +1,32 @@
 # M_halo
-20
+100
 
 # M_disk
-1
+5
 
 # M_bulge
-0.1
+2
 
 # M_gas
-0.1
+1
 
 # N_halo
-50000
+300000
 
 # N_disk
-100000
+128000
 
 # N_bulge
-1000
+32000
 
 # N_gas
-10000
+200000
 
 # a_halo, reff = 50
 20.71
 
-# a_bulge, reff = 3
-1.24
+# a_bulge, reff = 1.5
+0.081
 
 # Rd (radial scale factor for the disk)
 3.5
@@ -35,7 +35,7 @@
 0.7
 
 # z0_gas (in units of z0, 1 means z0_gas = z0)
-0.4
+0.035
 
 # Does the halo follow a core density profile?
 False
@@ -44,4 +44,4 @@ False
 False
 
 # Conversion factor from sigma_z to sigma_r for the disk
-0.82
+0.8

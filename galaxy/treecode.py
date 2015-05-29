@@ -21,7 +21,7 @@ class oct_tree():
     def find_place(self, pos):
         signs = np.sign(pos-self.center)
         index = 0
-        while not np.array_equal(signs, deltas[index]):
+        while index < 7 and not np.array_equal(signs, deltas[index]):
             index += 1
         return index
  
