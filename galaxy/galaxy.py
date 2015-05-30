@@ -454,12 +454,12 @@ def write_input_file(galaxy_data):
     masses = np.concatenate((m_gas, m_halo, m_disk, m_bulge))
     smooths = np.zeros(N_gas)
     write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
-      from_text=False, outfile=output,
+      outfile=output,
       data_list=[coords, vels, ids, masses, U, rho, smooths])
   else:
     masses = np.concatenate((m_halo, m_disk, m_bulge))
     write_snapshot(n_part=[0, N_halo, N_disk, N_bulge, 0, 0],
-      from_text=False, outfile=output,
+      outfile=output,
       data_list=[coords, vels, ids, masses])
 
 
