@@ -23,7 +23,6 @@ def process_input(file_):
 def read_header(folder, n_part):
     h_file = process_input(folder + "/header.txt")
     h_data = []
-    print n_part
     for j in n_part: # n_part
         h_data.append(int(j))
     for j in h_file[0][0:6]: # mass
