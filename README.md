@@ -1,6 +1,6 @@
 ## About
 
-This code uses the algorithm found in Springel & Di Matteo & Hernquist
+This code uses the algorithm found in Springel, Di Matteo & Hernquist
 (2005) for generating the initial conditions for a disk galaxy simulation
 with the code GADGET-2, including a thin isothermal gas component which
 must me relaxed for a few hundred Myr to reach equilibrium.
