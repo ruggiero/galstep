@@ -43,8 +43,8 @@ time due to the artificial viscosity, and will get a lot thicker.
 ## Author
 
     Rafael Ruggiero
-    Undergraduate student at Universidade de São Paulo (USP), Brazil
-    Contact: bluewhale [at] cecm.usp.br
+    pH.D student at Universidade de São Paulo (USP), Brazil
+    Contact: rafael.ruggiero [at] usp.br
 
 
 ## Disclaimer
