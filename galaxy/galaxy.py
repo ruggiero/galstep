@@ -169,17 +169,18 @@ def bulge_density(r):
   else:
     return M_bulge/(2*pi) * a_bulge/(r*(r+a_bulge)**3)
 
-
+# Positions are restricted to the radius where 90% of the mass is
+# at, so particles don't go too far
 def set_halo_positions():
-  # The factor M * 200^2 / 201^2 restricts the radius to 200 * a.
   radii = dehnen_inverse_cumulative(nprand.sample(N_halo) *
-    ((M_halo*40000) / 40401), M_halo, a_halo, halo_core)
+    ((M_halo * 0.9)), M_halo, a_halo, halo_core)
   thetas = np.arccos(nprand.sample(N_halo)*2 - 1)
   phis = 2 * pi * nprand.sample(N_halo)
   xs = radii * sin(thetas) * cos(phis)
   ys = radii * sin(thetas) * sin(phis)
   zs = radii * cos(thetas)
   coords = np.column_stack((xs, ys, zs))
+  print "maximum radius (dm): %f" % max(radii)
   return coords
 
 
@@ -402,7 +403,7 @@ def set_velocities(coords, T_cl_grid):
       vphi = nprand.normal(scale=factor*sigmap**0.5)
       if(bestz not in vphis):
         tck = inter.splrep(rho_axis, phi_grid[:, bestz])
-        vphis[bestz] = inter.interp1d(rho_axis, inter.splev(rho_axis, tck, der=1))
+        vphis[bestz] = inter.interp1d(rho_axis, inter.splev(rho_axis, tck, der=1), bounds_error=False, fill_value=0)
       if(vphis[bestz](rho) > 0):
         vphi += (rho * vphis[bestz](rho))**0.5
     else:
