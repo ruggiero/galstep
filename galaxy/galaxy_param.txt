@@ -1,5 +1,5 @@
 # M_halo
-20
+100
 
 # M_disk
 5
@@ -11,7 +11,7 @@
 1
 
 # N_halo
-400000
+2000000
 
 # N_disk
 100000
@@ -32,7 +32,7 @@
 3.5
 
 # z0 (height scale factor for the disk)
-0.5
+0.7
 
 # z0_gas (in units of z0, 1 means z0_gas = z0)
 0.035
@@ -44,4 +44,4 @@ False
 False
 
 # Conversion factor from sigma_z to sigma_r for the disk
-0.5
+0.8
