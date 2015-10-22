@@ -111,10 +111,16 @@ def generate_galaxy():
       phi_grid = np.loadtxt('potential_data.txt')
     else:
       remove('potential_data.txt')
-      fill_potential_grid(coords_stars, coords_gas) 
+      if(gas):
+        fill_potential_grid(coords_stars, coords_gas) 
+      else:
+        fill_potential_grid(coords_stars) 
       np.savetxt('potential_data.txt', phi_grid)
   else:
-    fill_potential_grid(coords_stars, coords_gas)
+    if(gas):
+      fill_potential_grid(coords_stars, coords_gas)
+    else:
+      fill_potential_grid(coords_stars) 
     np.savetxt('potential_data.txt', phi_grid)
   if(gas):
     print "Setting temperatures..."
@@ -168,6 +174,7 @@ def bulge_density(r):
     return (3*M_bulge)/(4*pi) * a_bulge/(r+a_bulge)**4
   else:
     return M_bulge/(2*pi) * a_bulge/(r*(r+a_bulge)**3)
+
 
 # Positions are restricted to the radius where 90% of the mass is
 # at, so particles don't go too far
@@ -231,7 +238,7 @@ def interpolate(value, axis):
     return index
 
 
-def fill_potential_grid(coords_stars, coords_gas):
+def fill_potential_grid(coords_stars, coords_gas=None):
   ps = []
   # Indexes are randomly distributed across processors for higher
   # performance. The tree takes longer to calculate the potential
@@ -244,11 +251,12 @@ def fill_potential_grid(coords_stars, coords_gas):
     stdout.write("%.2f%% done for the stellar disk\r" % prog)
     stdout.flush()
     gravtree.insert(part, M_disk/N_disk)
-  for i, part in enumerate(coords_gas):
-    prog = 100*float(i)/len(coords_gas)
-    stdout.write("%.2f%% done for the gaseous disk\r" % prog)
-    stdout.flush()
-    gravtree.insert(part, M_gas/N_gas)
+  if(coords_gas):
+    for i, part in enumerate(coords_gas):
+      prog = 100*float(i)/len(coords_gas)
+      stdout.write("%.2f%% done for the gaseous disk\r" % prog)
+      stdout.flush()
+      gravtree.insert(part, M_gas/N_gas)
  
   print ("Filling potential grid...")
   def loop(n_loop, N_CORES):
