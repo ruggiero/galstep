@@ -25,8 +25,8 @@
 # a_halo, reff = 50
 20.71
 
-# a_bulge, reff = 1.5
-0.081
+# a_bulge, reff = 3.38 kpc
+1.4
 
 # Rd (radial scale factor for the disk)
 3.5
