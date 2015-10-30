@@ -38,7 +38,7 @@ def init():
   global a_halo, a_bulge, Rd, z0, z0_gas
   global N_total, M_total
   global phi_grid, rho_axis, z_axis, N_rho, Nz
-  global halo_core, bulge_core, N_CORES, force_yes, output, gas, factor
+  global halo_core, bulge_core, N_CORES, force_yes, output, gas, factor, Z
   flags = parser(description="Generates an initial conditions file for a\
                               galaxy simulation with halo, stellar disk,\
                               gaseous disk and bulge components.")
@@ -70,6 +70,7 @@ def init():
   a_halo, a_bulge, Rd, z0, z0_gas = (float(i[0]) for i in vars_[8:13])
   halo_core, bulge_core = (i[0][:-1] == 'True' for i in vars_[13:15])
   factor = float(vars_[15][0])
+  Z = float(vars_[16][0])
   z0_gas *= z0
   if not gas:
     N_gas = 0
@@ -462,9 +463,16 @@ def write_input_file(galaxy_data):
     m_gas.fill(M_gas/N_gas)
     masses = np.concatenate((m_gas, m_halo, m_disk, m_bulge))
     smooths = np.zeros(N_gas)
-    write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
-      outfile=output,
-      data_list=[coords, vels, ids, masses, U, rho, smooths])
+    if Z > 0:
+      Z_gas = np.zeros(N_gas)
+      Z_gas.fill(Z)
+      write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
+        outfile=output,
+        data_list=[coords, vels, ids, masses, U, rho, smooths, Z_gas])
+    else:
+      write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
+        outfile=output,
+        data_list=[coords, vels, ids, masses, U, rho, smooths])
   else:
     masses = np.concatenate((m_halo, m_disk, m_bulge))
     write_snapshot(n_part=[0, N_halo, N_disk, N_bulge, 0, 0],

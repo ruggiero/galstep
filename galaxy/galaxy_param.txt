@@ -45,3 +45,6 @@ False
 
 # Conversion factor from sigma_z to sigma_r for the disk
 0.8
+
+# Initial metallicity for the gas (in solar units)
+1.0

@@ -35,7 +35,7 @@
 # Star formation time flag
 0
 
-# Metals flag
+# Metals flag (becomes 1 automatically if z > 0 in galaxy_param.txt)
 0
 
 # If the number of particles is 64 bits, this is the "high word" part

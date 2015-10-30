@@ -20,7 +20,7 @@ def process_input(file_):
     return h_file
 
 
-def read_header(folder, n_part):
+def read_header(folder, n_part, flag_metals=False):
     h_file = process_input(folder + "/header.txt")
     h_data = []
     for j in n_part: # n_part
@@ -39,11 +39,16 @@ def read_header(folder, n_part):
     h_data.append(float(h_file[8][0])) # omega0
     h_data.append(float(h_file[9][0])) # omega_lambda
     h_data.append(float(h_file[10][0])) # hubble_param
+    h_data.append(int(h_file[11][0])) # flag_age
+    if(flag_metals): # flag_metals
+      h_data.append(1) 
+    else:
+      h_data.append(int(h_file[12][0]))
 
     # blank, present in the header
-    for i in np.arange(96):
+    for i in np.arange(88):
         h_data.append('\0')
-    s = struct.Struct('iiiiii dddddd d d i i iiiiii i i dddd cccccccccccc\
+    s = struct.Struct('iiiiii dddddd d d i i iiiiii i i dddd ii cccc\
                        cccccccccccccccccccccccccccccccccccccccccccccccccc\
                        cccccccccccccccccccccccccccccccccc')
     packed_data = s.pack(*h_data)
@@ -81,11 +86,15 @@ def write_snapshot(n_part, folder=None, data_list=None, outfile='init.dat'):
     # Erasing the output file before opening it.
     open(outfile, 'w').close()
     f = file(outfile, 'a')
-    header_data = read_header(folder, n_part)
     pos_data = data_list[0]
     vel_data = data_list[1]
     ID_data = data_list[2]
     mass_data = data_list[3]
+    if len(data_list) > 7:
+        Z = data_list[7]
+        header_data = read_header(folder, n_part, flag_metals=True)
+    else:
+        header_data = read_header(folder, n_part)
     write_block(f, header_data, None, 'HEAD')
     write_block(f, pos_data, 'f', 'POS ')
     write_block(f, vel_data, 'f', 'VEL ')
@@ -96,6 +105,8 @@ def write_snapshot(n_part, folder=None, data_list=None, outfile='init.dat'):
         rho_data = data_list[5]
         smoothing_data = data_list[6]
         write_block(f, U_data, 'f', 'U   ')
+        if(len(data_list) > 7):
+            write_block(f, Z, 'f', 'Z   ')
         write_block(f, rho_data, 'f', 'RHO ')
         write_block(f, smoothing_data, 'f', 'HSML')
     f.close()
