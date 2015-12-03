@@ -23,9 +23,9 @@ to run this code in OSX, please try [this](https://superuser.com/questions/30275
 
 ## Usage
 
-### galaxy.py
+### galstep.py
 
-    usage: galaxy.py [-h] [--halo-core] [--bulge-core] [-cores CORES] [-temp TEMP]
+    usage: galstep.py [-h] [--halo-core] [--bulge-core] [-cores CORES] [-temp TEMP]
                      [--force-yes] [-o init.dat]
 
     Generates an initial conditions file for a galaxy simulation with halo,

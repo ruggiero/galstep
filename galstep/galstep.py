@@ -1,4 +1,4 @@
-# Run python galaxy.py --help for a description.
+# Run python galstep.py --help for a description.
 
 from os import path, remove
 from sys import exit, stdout, path as syspath
@@ -60,11 +60,11 @@ def init():
   force_yes = args.force_yes
   output = args.o
 
-  if not (path.isfile("header.txt") and path.isfile("galaxy_param.txt")):
-    print "header.txt or galaxy_param.txt missing."
+  if not (path.isfile("header.txt") and path.isfile("params_galaxy.txt")):
+    print "header.txt or params_galaxy.txt missing."
     exit(0)
 
-  vars_ = process_input("galaxy_param.txt")
+  vars_ = process_input("params_galaxy.txt")
   M_halo, M_disk, M_bulge, M_gas = (float(i[0]) for i in vars_[0:4])
   N_halo, N_disk, N_bulge, N_gas = (float(i[0]) for i in vars_[4:8])
   a_halo, a_bulge, Rd, z0, z0_gas = (float(i[0]) for i in vars_[8:13])
