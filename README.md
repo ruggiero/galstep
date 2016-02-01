@@ -11,8 +11,6 @@ the center is strongly non gaussian. Also, note that if you run GADGET-2
 without any gas cooling, the gaseous disk will gain lots of energy over
 time due to the artificial viscosity, and will get a lot thicker.
 
-If you are getting *OSError: [Errno 24] Too many open files* while trying
-to run this code in OSX, please try [this](https://superuser.com/questions/302754/increase-the-maximum-number-of-open-file-descriptors-in-snow-leopard/514049#514049).
 
 ## Required libraries
  
@@ -40,6 +38,12 @@ to run this code in OSX, please try [this](https://superuser.com/questions/30275
                     file. Might be useful for automating the execution of the
                     script.
       -o init.dat   The name of the output file.
+
+
+## Troubleshooting
+
+If you are getting *OSError: [Errno 24] Too many open files* while trying
+to run this code in OSX, please try [this](https://superuser.com/questions/302754/increase-the-maximum-number-of-open-file-descriptors-in-snow-leopard/514049#514049).
 
 
 ## Author
