@@ -5,7 +5,7 @@
 5
 
 # M_bulge
-2
+1
 
 # M_gas
 1
@@ -20,13 +20,13 @@
 40000
 
 # N_gas
-200000
+1000000
 
-# a_halo, reff = 50
-20.71
+# a_halo
+47
 
-# a_bulge, reff = 3.38 kpc
-1.4
+# a_bulge
+1.5
 
 # Rd (radial scale factor for the disk)
 3.5
