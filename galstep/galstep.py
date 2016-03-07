@@ -39,6 +39,7 @@ def init():
   global N_total, M_total
   global phi_grid, rho_axis, z_axis, N_rho, Nz
   global halo_core, bulge_core, N_CORES, force_yes, output, gas, factor, Z
+  global max_radius
   flags = parser(description="Generates an initial conditions file for a\
                               galaxy simulation with halo, stellar disk,\
                               gaseous disk and bulge components.")
@@ -71,6 +72,8 @@ def init():
   halo_core, bulge_core = (i[0][:-1] == 'True' for i in vars_[13:15])
   factor = float(vars_[15][0])
   Z = float(vars_[16][0])
+  max_radius = float(vars_[17][0])
+
   z0_gas *= z0
   if not gas:
     N_gas = 0
@@ -151,6 +154,13 @@ def dehnen_inverse_cumulative(Mc, M, a, core):
     return (a * ((Mc*M)**0.5 + Mc)) / (M-Mc)
 
 
+def cumulative(r, M, a, core):
+    if(core):
+        return M*r**3/(r+a)**3
+    else:
+        return M*r**2/(r+a)**2
+
+
 def dehnen_potential(r, M, a, core):
   if(core):
     return (G*M)/(2*a) * ((r/(r+a))**2 - 1)
@@ -180,21 +190,22 @@ def bulge_density(r):
 # Positions are restricted to the radius where 90% of the mass is
 # at, so particles don't go too far
 def set_halo_positions():
-  radii = dehnen_inverse_cumulative(nprand.sample(N_halo) *
-    ((M_halo * 0.9)), M_halo, a_halo, halo_core)
+  factor = cumulative(max_radius, M_halo, a_halo, halo_core)
+  radii = dehnen_inverse_cumulative(nprand.sample(N_halo) * factor,
+    M_halo, a_halo, halo_core)
   thetas = np.arccos(nprand.sample(N_halo)*2 - 1)
   phis = 2 * pi * nprand.sample(N_halo)
   xs = radii * sin(thetas) * cos(phis)
   ys = radii * sin(thetas) * sin(phis)
   zs = radii * cos(thetas)
   coords = np.column_stack((xs, ys, zs))
-  print "maximum radius (dm): %f" % max(radii)
   return coords
 
 
 def set_bulge_positions():
-  radii = dehnen_inverse_cumulative(nprand.sample(N_bulge) *
-    ((M_bulge*40000) / 40401), M_bulge, a_bulge, bulge_core)
+  factor = cumulative(max_radius, M_bulge, a_bulge, bulge_core)
+  radii = dehnen_inverse_cumulative(nprand.sample(N_bulge) * factor,
+    M_bulge, a_bulge, bulge_core)
   thetas = np.arccos(nprand.sample(N_bulge)*2 - 1)
   phis = 2 * pi * nprand.sample(N_bulge)
   xs = radii * sin(thetas) * cos(phis)
@@ -206,8 +217,8 @@ def set_bulge_positions():
 
 def set_disk_positions(N, z0):
   radii = np.zeros(N)
-  # The maximum radius is restricted to 60 kpc.
-  sample = nprand.sample(N) * disk_radial_cumulative(60)
+  # The maximum radius is restricted to 20 kpc.
+  sample = nprand.sample(N) * disk_radial_cumulative(20)
   for i, s in enumerate(sample):
     radii[i] = disk_radial_inverse_cumulative(s)
   zs = disk_height_inverse_cumulative(nprand.sample(N), z0)

@@ -20,7 +20,7 @@
 40000
 
 # N_gas
-1000000
+2000000
 
 # a_halo
 47
@@ -48,3 +48,6 @@ False
 
 # Initial metallicity for the gas (in solar units)
 1.0
+
+# Maximum radius for halo/bulge particles
+50
