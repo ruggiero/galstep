@@ -73,8 +73,6 @@ def init():
   factor = float(vars_[15][0])
   Z = float(vars_[16][0])
   max_radius = float(vars_[17][0])
-  M_halo = cumulative(max_radius, M_halo, a_halo, halo_core) # truncation
-  M_bulge = cumulative(max_radius, M_bulge, a_bulge, bulge_core) # truncation
 
   z0_gas *= z0
   if not gas:
@@ -464,11 +462,11 @@ def write_input_file(galaxy_data):
   vels = galaxy_data[1]
   ids = np.arange(1, N_total+1, 1)
   m_halo = np.empty(N_halo)
-  m_halo.fill(M_halo/N_halo)
+  m_halo.fill(cumulative(max_radius, M_halo, a_halo, halo_core)/N_halo)
   m_disk = np.empty(N_disk)
   m_disk.fill(M_disk/N_disk)
   m_bulge = np.empty(N_bulge)
-  m_bulge.fill(M_bulge/N_bulge)
+  m_bulge.fill(cumulative(max_radius, M_bulge, a_bulge, bulge_core)/N_bulge)
   if(gas):
     U = galaxy_data[2]
     rho = galaxy_data[3]
