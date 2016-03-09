@@ -73,6 +73,8 @@ def init():
   factor = float(vars_[15][0])
   Z = float(vars_[16][0])
   max_radius = float(vars_[17][0])
+  M_halo = cumulative(max_radius, M_halo, a_halo, halo_core) # truncation
+  M_bulge = cumulative(max_radius, M_bulge, a_bulge, bulge_core) # truncation
 
   z0_gas *= z0
   if not gas:
