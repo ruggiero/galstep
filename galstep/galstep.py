@@ -39,7 +39,6 @@ def init():
   global N_total, M_total
   global phi_grid, rho_axis, z_axis, N_rho, Nz
   global halo_core, bulge_core, N_CORES, force_yes, output, gas, factor, Z
-  global max_radius
   flags = parser(description="Generates an initial conditions file for a\
                               galaxy simulation with halo, stellar disk,\
                               gaseous disk and bulge components.")
@@ -72,7 +71,6 @@ def init():
   halo_core, bulge_core = (i[0][:-1] == 'True' for i in vars_[13:15])
   factor = float(vars_[15][0])
   Z = float(vars_[16][0])
-  max_radius = float(vars_[17][0])
 
   z0_gas *= z0
   if not gas:
@@ -104,8 +102,8 @@ def generate_galaxy():
 
   if path.isfile('potential_data.txt'):
     if not force_yes:
-      print ("Use existing potential tabulation in potential_data.txt?\
-              Make sure it refers to the current parameters. (y/n)")
+      print ("Use existing potential tabulation in potential_data.txt?\n"+
+              "Make sure it refers to the current parameters. (y/n)")
       ans = raw_input()
       while ans not in "yn":
         print "Please give a proper answer. (y/n)"
@@ -190,7 +188,8 @@ def bulge_density(r):
 # Positions are restricted to the radius where 90% of the mass is
 # at, so particles don't go too far
 def set_halo_positions():
-  factor = cumulative(max_radius, M_halo, a_halo, halo_core)
+#  factor = cumulative(max_radius, M_halo, a_halo, halo_core) # TODO
+  factor = 0.9*M_halo
   radii = dehnen_inverse_cumulative(nprand.sample(N_halo) * factor,
     M_halo, a_halo, halo_core)
   thetas = np.arccos(nprand.sample(N_halo)*2 - 1)
@@ -203,7 +202,8 @@ def set_halo_positions():
 
 
 def set_bulge_positions():
-  factor = cumulative(max_radius, M_bulge, a_bulge, bulge_core)
+#  factor = cumulative(max_radius, M_bulge, a_bulge, bulge_core) # TODO
+  factor = 0.9*M_bulge
   radii = dehnen_inverse_cumulative(nprand.sample(N_bulge) * factor,
     M_bulge, a_bulge, bulge_core)
   thetas = np.arccos(nprand.sample(N_bulge)*2 - 1)
@@ -382,7 +382,7 @@ def set_velocities(coords, T_cl_grid):
   sphi_grid[np.isnan(sphi_grid)] = 1.0e-5;
   sphi_grid[sphi_grid == np.inf] = 1.0e-5;
   sphi_grid[sphi_grid <= 0] = 1.0e-5;
-
+  sz_grid[sz_grid == 0] = 1.0e-5;
 #  aux_grid[np.isnan(aux_grid)] = 1.0e-5;
 #  aux_grid[aux_grid == np.inf] = 1.0e-5;
 #  aux_grid[aux_grid <= sphi_grid[1][0]] = (sphi_grid[1][aux_grid <= sphi_grid[1][0]] + 1.0e-5)
@@ -462,11 +462,11 @@ def write_input_file(galaxy_data):
   vels = galaxy_data[1]
   ids = np.arange(1, N_total+1, 1)
   m_halo = np.empty(N_halo)
-  m_halo.fill(cumulative(max_radius, M_halo, a_halo, halo_core)/N_halo)
+  m_halo.fill(M_halo/N_halo)
   m_disk = np.empty(N_disk)
   m_disk.fill(M_disk/N_disk)
   m_bulge = np.empty(N_bulge)
-  m_bulge.fill(cumulative(max_radius, M_bulge, a_bulge, bulge_core)/N_bulge)
+  m_bulge.fill(M_bulge/N_bulge)
   if(gas):
     U = galaxy_data[2]
     rho = galaxy_data[3]
