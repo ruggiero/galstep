@@ -102,8 +102,8 @@ def generate_galaxy():
 
   if path.isfile('potential_data.txt'):
     if not force_yes:
-      print ("Use existing potential tabulation in potential_data.txt?\n"+
-              "Make sure it refers to the current parameters. (y/n)")
+      print ("Use existing potential tabulation in potential_data.txt?\
+              Make sure it refers to the current parameters. (y/n)")
       ans = raw_input()
       while ans not in "yn":
         print "Please give a proper answer. (y/n)"
@@ -188,7 +188,6 @@ def bulge_density(r):
 # Positions are restricted to the radius where 90% of the mass is
 # at, so particles don't go too far
 def set_halo_positions():
-#  factor = cumulative(max_radius, M_halo, a_halo, halo_core) # TODO
   factor = 0.9*M_halo
   radii = dehnen_inverse_cumulative(nprand.sample(N_halo) * factor,
     M_halo, a_halo, halo_core)
@@ -202,7 +201,6 @@ def set_halo_positions():
 
 
 def set_bulge_positions():
-#  factor = cumulative(max_radius, M_bulge, a_bulge, bulge_core) # TODO
   factor = 0.9*M_bulge
   radii = dehnen_inverse_cumulative(nprand.sample(N_bulge) * factor,
     M_bulge, a_bulge, bulge_core)
