@@ -215,8 +215,8 @@ def set_bulge_positions():
 
 def set_disk_positions(N, z0):
   radii = np.zeros(N)
-  # The maximum radius is restricted to 20 kpc.
-  sample = nprand.sample(N) * disk_radial_cumulative(20)
+  # The maximum radius is restricted to 60 kpc.
+  sample = nprand.sample(N) * disk_radial_cumulative(60)
   for i, s in enumerate(sample):
     radii[i] = disk_radial_inverse_cumulative(s)
   zs = disk_height_inverse_cumulative(nprand.sample(N), z0)
@@ -473,11 +473,11 @@ def write_input_file(galaxy_data):
     masses = np.concatenate((m_gas, m_halo, m_disk, m_bulge))
     smooths = np.zeros(N_gas)
     if Z > 0:
-      Z_gas = np.zeros(N_gas)
-      Z_gas.fill(Z)
+      Zs = np.zeros(N_gas + N_disk + N_bulge)
+      Zs.fill(Z)
       write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
         outfile=output,
-        data_list=[coords, vels, ids, masses, U, rho, smooths, Z_gas])
+        data_list=[coords, vels, ids, masses, U, rho, smooths, Zs])
     else:
       write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
         outfile=output,
