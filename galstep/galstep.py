@@ -23,7 +23,7 @@ from units import temp_to_internal_energy
 from pygadgetreader import *
 
 
-G = 43007.1
+G = 44920
 
 
 def main():
