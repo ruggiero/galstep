@@ -66,7 +66,7 @@ def init():
 
   vars_ = process_input("params_galaxy.txt")
   M_halo, M_disk, M_bulge, M_gas = (float(i[0]) for i in vars_[0:4])
-  N_halo, N_disk, N_bulge, N_gas = (float(i[0]) for i in vars_[4:8])
+  N_halo, N_disk, N_bulge, N_gas = (int(i[0]) for i in vars_[4:8])
   a_halo, a_bulge, Rd, z0, z0_gas = (float(i[0]) for i in vars_[8:13])
   halo_core, bulge_core = (i[0][:-1] == 'True' for i in vars_[13:15])
   factor = float(vars_[15][0])
