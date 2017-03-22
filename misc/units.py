@@ -4,7 +4,7 @@ HYDROGEN_MASSFRAC = 0.76
 GAMMA = (5.0 / 3)   
 GAMMA_MINUS1 = (GAMMA - 1)
 
-G = 43007.1
+G = 44920
 
 cm_in_km = 1e-5 
 erg_in_J = 1e-7
