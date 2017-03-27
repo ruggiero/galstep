@@ -3,7 +3,9 @@
 This code uses the algorithm found in Springel, Di Matteo & Hernquist
 (2005) for generating the initial conditions for a disk galaxy simulation
 with the code GADGET-2, including a thin isothermal gas component which
-must me relaxed for a few hundred Myr to reach equilibrium.
+must me relaxed for a few hundred Myr to reach equilibrium. If you are
+using a simulation code which includes radiative cooling, the relaxation
+will be a lot faster (a few tens of Myr at most).
 
 Important: this method fails to generate low mass halos (~10^10 solar
 masses) in equilibrium, since the velocity distribution for these near
