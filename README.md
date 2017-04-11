@@ -48,6 +48,11 @@ If you are getting *OSError: [Errno 24] Too many open files* while trying
 to run this code in OSX, please try [this](https://superuser.com/questions/302754/increase-the-maximum-number-of-open-file-descriptors-in-snow-leopard/514049#514049).
 
 
+## Works which used this code
+
+* [Ruggiero & Lima Neto (2017)](http://adsabs.harvard.edu/cgi-bin/bib_query?arXiv:1703.08550)
+
+
 ## Author
 
     Rafael Ruggiero
