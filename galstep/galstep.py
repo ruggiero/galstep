@@ -61,12 +61,12 @@ def init():
   force_yes = args.force_yes
   output = args.o
 
-  if not (path.isfile("header.txt") and path.isfile("params_galaxy.txt")):
-    print "header.txt or params_galaxy.txt missing."
+  if not (path.isfile("header.txt") and path.isfile("params_galaxy.ini")):
+    print "header.txt or params_galaxy.ini missing."
     exit(0)
 
   config = ConfigParser()
-  config.read("params_galaxy.txt")
+  config.read("params_galaxy.ini")
   # Halo
   M_halo = config.getfloat('halo', 'M_halo')
   a_halo = config.getfloat('halo', 'a_halo')
