@@ -13,11 +13,12 @@ import scipy.interpolate as interp
 from bisect import bisect_left
 from multiprocessing import Process, Array
 from argparse import ArgumentParser as parser
+from ConfigParser import ConfigParser
 from itertools import product
 import scipy.interpolate as inter
 
 from treecode import oct_tree, potential
-from snapwrite import process_input, write_snapshot
+from snapwrite import write_snapshot
 syspath.append(path.join(path.dirname(__file__), '..', 'misc'))
 from units import temp_to_internal_energy
 from pygadgetreader import *
@@ -64,13 +65,29 @@ def init():
     print "header.txt or params_galaxy.txt missing."
     exit(0)
 
-  vars_ = process_input("params_galaxy.txt")
-  M_halo, M_disk, M_bulge, M_gas = (float(i[0]) for i in vars_[0:4])
-  N_halo, N_disk, N_bulge, N_gas = (int(i[0]) for i in vars_[4:8])
-  a_halo, a_bulge, Rd, z0, z0_gas = (float(i[0]) for i in vars_[8:13])
-  halo_core, bulge_core = (i[0][:-1] == 'True' for i in vars_[13:15])
-  factor = float(vars_[15][0])
-  Z = float(vars_[16][0])
+  config = ConfigParser()
+  config.read("params_galaxy.txt")
+  # Halo
+  M_halo = config.getfloat('halo', 'M_halo')
+  a_halo = config.getfloat('halo', 'a_halo')
+  N_halo = config.getint('halo', 'N_halo')
+  halo_core = config.getboolean('halo', 'halo_core')
+  # Disk
+  M_disk = config.getfloat('disk', 'M_disk')
+  N_disk = config.getint('disk', 'N_disk')
+  Rd = config.getfloat('disk', 'Rd')
+  z0 = config.getfloat('disk', 'z0')
+  factor = config.getfloat('disk', 'factor')
+  # Bulge
+  M_bulge = config.getfloat('bulge', 'M_bulge')
+  a_bulge = config.getfloat('bulge', 'a_bulge')
+  N_bulge = config.getint('bulge', 'N_bulge')
+  bulge_core = config.getboolean('bulge', 'bulge_core')
+  # Gas
+  M_gas = config.getfloat('gas', 'M_gas')
+  N_gas = config.getint('gas', 'N_gas')
+  z0_gas = config.getfloat('gas', 'z0_gas')
+  Z = config.getfloat('gas', 'Z')
 
   z0_gas *= z0
   if not gas:

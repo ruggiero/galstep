@@ -1,53 +1,24 @@
-# M_halo
-100
+[halo]
+M_halo = 100
+N_halo = 2000000
+a_halo = 47
+halo_core = False ; Does the halo follow a core density profile?
 
-# M_disk
-5
+[disk]
+M_disk = 5
+N_disk = 100000
+Rd = 3.5 ; Radial scale factor for the disk
+z0 = 0.7 ; Height scale factor for the disk
+factor = 0.8 ; Conversion factor from sigma_z to sigma_r
 
-# M_bulge
-1
+[bulge]
+M_bulge = 1
+N_bulge = 40000
+a_bulge = 1.5
+bulge_core = False ; Does the bulge follow a core density profile?
 
-# M_gas
-1
-
-# N_halo
-2000000
-
-# N_disk
-100000
-
-# N_bulge
-40000
-
-# N_gas
-2000000
-
-# a_halo
-47
-
-# a_bulge
-1.5
-
-# Rd (radial scale factor for the disk)
-3.5
-
-# z0 (height scale factor for the disk)
-0.7
-
-# z0_gas (in units of z0, 1 means z0_gas = z0)
-0.035
-
-# Does the halo follow a core density profile?
-False
-
-# Does the bulge follow a core density profile?
-False
-
-# Conversion factor from sigma_z to sigma_r for the disk
-0.8
-
-# Initial metallicity for the gas (in solar units)
-1.0
-
-# Maximum radius for halo/bulge particles
-1000
+[gas]
+M_gas = 1
+N_gas = 2000000
+z0_gas = 0.035 ; Scale height in units of z0, 1 means z0_gas = z0
+Z = 1.0 ; Initial metallicity for the gas (in solar units)
