@@ -278,7 +278,7 @@ def fill_potential_grid(coords_stars, coords_gas=None):
     stdout.write("%.2f%% done for the stellar disk\r" % prog)
     stdout.flush()
     gravtree.insert(part, M_disk/N_disk)
-  if(coords_gas != None):
+  if(coords_gas is not None):
     for i, part in enumerate(coords_gas):
       prog = 100*float(i)/len(coords_gas)
       stdout.write("%.2f%% done for the gaseous disk\r" % prog)
