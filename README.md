@@ -2,7 +2,7 @@
 
 This code uses the algorithm found in Springel, Di Matteo & Hernquist
 (2005) for generating the initial conditions for a disk galaxy simulation
-with the code GADGET-2, including a thin isothermal gas component which
+with the codes GADGET-2 or RAMSES (using the [DICE patch](https://bitbucket.org/vperret/dice/wiki/RAMSES%20simulation)), including a thin isothermal gas component which
 must me relaxed for a few hundred Myr to reach equilibrium. If you are
 using a simulation code which includes radiative cooling, the relaxation
 will be a lot faster (a few tens of Myr at most).
