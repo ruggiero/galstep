@@ -23,7 +23,7 @@ time due to the artificial viscosity, and will get a lot thicker.
 
 ## Usage
 
-### galstep.py
+You can run `python clustep.py --help` to see the message below. 
 
     usage: galstep.py [-h] [--halo-core] [--bulge-core] [-cores CORES] [-temp TEMP]
                      [--force-yes] [-o init.dat]
