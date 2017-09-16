@@ -95,11 +95,11 @@ def init():
     M_gas = 0
   M_total = M_disk + M_bulge + M_halo + M_gas
   N_total = N_disk + N_bulge + N_halo + N_gas
-  N_rho = config.getfloat('global', 'N_rho')
-  N_z = config.getfloat('global', 'N_z')
+  N_rho = config.getint('global', 'N_rho')
+  Nz = config.getint('global', 'Nz')
   phi_grid = np.zeros((N_rho, Nz))
   rho_max = config.getfloat('global', 'rho_max')*a_halo
-  z_max = a_halo config.getfloat('global', 'z_max')*a_halo
+  z_max = config.getfloat('global', 'z_max')*a_halo
   rho_axis = np.logspace(-2, log10(rho_max), N_rho)
   z_axis = np.logspace(-2, log10(z_max), Nz)
 
