@@ -47,7 +47,8 @@ def init():
                      action='store_true')
   flags.add_argument('-cores', help='The number of cores to use during the\
                                      potential canculation. Make sure this\
-                                     number is a factor of N_rho*N_z.',
+                                     number is a factor of N_rho*N_z. Default\
+                                     is 1.',
                      default=1)
   flags.add_argument('--force-yes', help='Don\'t ask if you want to use the\
                                           existing potential_data.txt file.\
