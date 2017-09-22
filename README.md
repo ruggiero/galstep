@@ -25,8 +25,7 @@ time due to the artificial viscosity, and will get a lot thicker.
 
 You can run `python galstep.py --help` to see the message below. 
 
-    usage: galstep.py [-h] [--halo-core] [--bulge-core] [-cores CORES] [-temp TEMP]
-                     [--force-yes] [-o init.dat]
+    usage: galstep.py [-h] [--nogas] [-cores CORES] [--force-yes] [-o init.dat]
 
     Generates an initial conditions file for a galaxy simulation with halo,
     stellar disk, gaseous disk and bulge components.
@@ -35,10 +34,9 @@ You can run `python galstep.py --help` to see the message below.
       -h, --help    show this help message and exit
       --nogas       Generates a galaxy without gas.
       -cores CORES  The number of cores to use during the potential canculation.
-                    Default is 1. Make sure this number is a factor of N_rho*N_z.
+                    Make sure this number is a factor of N_rho*N_z.
       --force-yes   Don't ask if you want to use the existing potential_data.txt
-                    file. Might be useful for automating the execution of the
-                    script.
+                    file. Useful for automating the execution of the script.
       -o init.dat   The name of the output file.
 
 
