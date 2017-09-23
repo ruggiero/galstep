@@ -2,16 +2,21 @@
 
 This code uses the algorithm found in Springel, Di Matteo & Hernquist
 (2005) for generating the initial conditions for a disk galaxy simulation
-with the codes GADGET-2 or RAMSES (using the [DICE patch](https://bitbucket.org/vperret/dice/wiki/RAMSES%20simulation)), including a thin isothermal gas component which
-must me relaxed for a few hundred Myr to reach equilibrium. If you are
-using a simulation code which includes radiative cooling, the relaxation
-will be a lot faster (a few tens of Myr at most).
+with the codes GADGET-2 or RAMSES (using the [DICE patch](https://bitbucket.org/vperret/dice/wiki/RAMSES%20simulation)), including 
+a stellar disk, a gaseous disk, a dark matter halo and a stellar bulge. The
+first two components follow an exponential density profile, and the last
+two a Dehnen density profile with gamma=1 by default, corresponding to a 
+Hernquist profile. You can check out the expressions in
+[Ruggiero & Lima Neto (2017)](http://adsabs.harvard.edu/cgi-bin/bib_query?arXiv:1703.08550).
 
-Important: this method fails to generate low mass halos (~10^10 solar
+Some notes: this method fails to generate low mass halos (~10^10 solar
 masses) in equilibrium, since the velocity distribution for these near
-the center is strongly non gaussian. Also, note that if you run GADGET-2
+the center is strongly non gaussian. Secondly, if you run GADGET-2
 without any gas cooling, the gaseous disk will gain lots of energy over
-time due to the artificial viscosity, and will get a lot thicker.
+time due to the artificial viscosity, and will get a lot thicker. Lastly,
+the gas component must me relaxed for a few hundred Myr to reach equilibrium
+in case your simulation doesn't include radiative cooling. If it does,
+relaxation will be a lot faster (a few tens of Myr at most).
 
 
 ## Required libraries
@@ -49,6 +54,7 @@ to run this code in OSX, please try [this](https://superuser.com/questions/30275
 ## Works which used this code
 
 * [Ruggiero & Lima Neto (2017)](http://adsabs.harvard.edu/cgi-bin/bib_query?arXiv:1703.08550)
+
 
 
 ## Author
