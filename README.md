@@ -18,6 +18,11 @@ the gas component must me relaxed for a few hundred Myr to reach equilibrium
 in case your simulation doesn't include radiative cooling. If it does,
 relaxation will be a lot faster (a few tens of Myr at most).
 
+About units: the value for the gravitational constant G used in this code
+is such that the unit for length is 1.0 kpc, for mass 1.0e10 solar masses,
+and for velocity 1.0 km/s. This is the default for GADGET-2, and works out
+of the box in RAMSES with the DICE patch.
+
 
 ## Required libraries
  
