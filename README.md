@@ -28,8 +28,8 @@ relaxation will be a lot faster (a few tens of Myr at most).
 
 ## Usage
 
-You can run `python galstep.py --help` to see the message below. Please check out
-the `galaxy_params.ini` to see the available free parameters.
+You can run `python galstep.py --help` to see the message below. Also please
+check out the `galaxy_params.ini` file to see the available free parameters.
 
     usage: galstep.py [-h] [--nogas] [-cores CORES] [--force-yes] [-o init.dat]
 
