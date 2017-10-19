@@ -94,6 +94,7 @@ def init():
   a_bulge = config.getfloat('bulge', 'a_bulge')
   N_bulge = config.getint('bulge', 'N_bulge')
   bulge_core = config.getboolean('bulge', 'bulge_core')
+
   # Gas
   M_gas = config.getfloat('gas', 'M_gas')
   N_gas = config.getint('gas', 'N_gas')

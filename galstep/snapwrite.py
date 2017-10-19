@@ -85,7 +85,7 @@ def write_block(f, block_data, data_type, block_name):
 
 
 def write_snapshot(n_part, folder=None, data_list=None, outfile='init.dat',
-                    file_format='hdf5'):
+                    file_format='gadget2', doubleprecision=False):
     N_gas = n_part[0]
     folder = os.getcwd()
 
@@ -112,7 +112,10 @@ def write_snapshot(n_part, folder=None, data_list=None, outfile='init.dat',
         if raw_hdata[29] != 0:
             Z = np.zeros((np.sum(n_part), raw_hdata[29]))
 
+            # If more than 1 metal field, data_list[7][0] acts as a fractional
+            # multiplier of Z_sun instead of Z_sun itself. 
             if raw_hdata[29] == 11:
+                # TODO put this in the configuration file
                 # All, He, C, N, O, Ne, Mg, Si, S, Ca, Fe (Asplund 2009)
                 solar_abundances = [0.02, 0.28, 3.26e-3, 1.32e-3, 8.65e-3,
                                     2.22e-3, 9.31e-4, 1.08e-3, 6.44e-4,
@@ -143,7 +146,7 @@ def write_snapshot(n_part, folder=None, data_list=None, outfile='init.dat',
 
         f = h5py.File(outfile, 'w')
         
-        # TODO put this in raw_hdata
+        # TODO put this in header.txt
         double_precision = 1
 
         header = f.create_group('Header')
@@ -199,8 +202,11 @@ def write_snapshot(n_part, folder=None, data_list=None, outfile='init.dat',
             p.create_dataset('Masses', data = mass_data[start:end],
                                 dtype = dtype)
            
+            # TODO currently all gas+stars get the same metallicity.
+            # this should be an option in the configuration as well.
             if i in [0, 2, 3, 4]:
-                assert np.shape(Z[start:end]) == (n_part[i], raw_hdata[29])
+                if raw_hdata[29] > 1:
+                    assert np.shape(Z[start:end]) == (n_part[i], raw_hdata[29])
 
                 p.create_dataset('Metallicity', data = Z[start:end],
                                     dtype = dtype)
