@@ -85,7 +85,7 @@ def write_block(f, block_data, data_type, block_name):
 
 
 def write_snapshot(n_part, folder=None, data_list=None, outfile='init.dat',
-                    file_format='gadget2', doubleprecision=False):
+                    file_format='gadget2'):
     N_gas = n_part[0]
     folder = os.getcwd()
 
