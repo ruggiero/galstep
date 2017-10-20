@@ -29,6 +29,7 @@ of the box in RAMSES with the DICE patch.
 * NumPy (python-numpy)
 * SciPy (python-scipy)
 * [pyGadgetReader](https://bitbucket.org/rthompson/pygadgetreader)
+* h5py (only if you need the HDF5 file format, python-h5py)
 
 
 ## Usage
@@ -36,7 +37,8 @@ of the box in RAMSES with the DICE patch.
 You can run `python galstep.py --help` to see the message below. Also please
 check out the `galaxy_params.ini` file to see the available free parameters.
 
-    usage: galstep.py [-h] [--nogas] [-cores CORES] [--force-yes] [-o init.dat]
+    usage: galstep.py [-h] [--nogas] [-cores CORES] [--force-yes] [--hdf5]
+                      [-o init.dat]
 
     Generates an initial conditions file for a galaxy simulation with halo,
     stellar disk, gaseous disk and bulge components.
@@ -45,9 +47,10 @@ check out the `galaxy_params.ini` file to see the available free parameters.
       -h, --help    show this help message and exit
       --nogas       Generates a galaxy without gas.
       -cores CORES  The number of cores to use during the potential canculation.
-                    Make sure this number is a factor of N_rho*N_z.
+                    Make sure this number is a factor of N_rho*N_z. Default is 1.
       --force-yes   Don't ask if you want to use the existing potential_data.txt
                     file. Useful for automating the execution of the script.
+      --hdf5        Generate HDF5 initial conditions. Requires h5py.
       -o init.dat   The name of the output file.
 
 
