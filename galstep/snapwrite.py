@@ -1,9 +1,7 @@
 import sys
 import os
 import struct
-
 import numpy as np
-import h5py
 
 # Creates a list containing the non-commented, non-empty lines
 # of the input file for the header.
@@ -106,6 +104,7 @@ def write_snapshot(n_part, folder=None, data_list=None, outfile='init.dat',
         header_data, raw_hdata = read_header(folder, n_part)
 
     if file_format == 'hdf5':
+        import h5py
         if outfile == 'init.dat':
             outfile = 'init.hdf5'
 
