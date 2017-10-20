@@ -56,8 +56,8 @@ def init():
                                           existing potential_data.txt file.\
                                           Useful for automating the execution\
                                           of the script.', action='store_true')
-  flags.add_argument('--hdf5', help = 'Generate HDF5 initial conditions. \
-                                          Requires h5py.', 
+  flags.add_argument('--hdf5', help='Output initial conditions in HDF5\
+                                     format.',
                      action = 'store_true')
   flags.add_argument('-o', help='The name of the output file.',
                      metavar="init.dat", default="init.dat")

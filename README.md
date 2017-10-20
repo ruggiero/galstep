@@ -50,7 +50,7 @@ check out the `galaxy_params.ini` file to see the available free parameters.
                     Make sure this number is a factor of N_rho*N_z. Default is 1.
       --force-yes   Don't ask if you want to use the existing potential_data.txt
                     file. Useful for automating the execution of the script.
-      --hdf5        Generate HDF5 initial conditions. Requires h5py.
+      --hdf5        Output initial conditions in HDF5 format.
       -o init.dat   The name of the output file.
 
 
