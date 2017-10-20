@@ -40,6 +40,8 @@ def init():
   global N_total, M_total
   global phi_grid, rho_axis, z_axis, N_rho, Nz
   global halo_core, bulge_core, N_CORES, force_yes, output, gas, factor, Z
+  global file_format
+
   flags = parser(description="Generates an initial conditions file for a\
                               galaxy simulation with halo, stellar disk,\
                               gaseous disk and bulge components.")
@@ -54,6 +56,9 @@ def init():
                                           existing potential_data.txt file.\
                                           Useful for automating the execution\
                                           of the script.', action='store_true')
+  flags.add_argument('--hdf5', help = 'Generate HDF5 initial conditions. \
+                                          Requires h5py.', 
+                     action = 'store_true')
   flags.add_argument('-o', help='The name of the output file.',
                      metavar="init.dat", default="init.dat")
   args = flags.parse_args()
@@ -61,6 +66,11 @@ def init():
   N_CORES = int(args.cores)
   force_yes = args.force_yes
   output = args.o
+  
+  if args.hdf5:
+    file_format = 'hdf5'
+  else:
+    file_format = 'gadget2'
 
   if not (path.isfile("header.txt") and path.isfile("params_galaxy.ini")):
     print "header.txt or params_galaxy.ini missing."
@@ -84,6 +94,7 @@ def init():
   a_bulge = config.getfloat('bulge', 'a_bulge')
   N_bulge = config.getint('bulge', 'N_bulge')
   bulge_core = config.getboolean('bulge', 'bulge_core')
+
   # Gas
   M_gas = config.getfloat('gas', 'M_gas')
   N_gas = config.getint('gas', 'N_gas')
@@ -151,15 +162,26 @@ def generate_galaxy():
     vels = set_velocities(coords, T_cl_grid) 
   else:
     print "Setting velocities..."
-    vels = set_velocities(coords, None) 
+    vels = set_velocities(coords, None)
   coords = np.array(coords, order='C')
-  coords.shape = (1, -1) # Linearizing the array.
+  # Don't need this for HDF5 - D. Rennehan
+  if file_format == 'gadget2':
+    coords.shape = (1, -1) # Linearizing the array.
   vels = np.array(vels, order='C')
-  vels.shape = (1, -1)
-  if(gas):
-    return [coords[0], vels[0], U, rho]
+  if file_format == 'gadget2':
+    vels.shape = (1, -1)
+
+  # Again, don't need this if doing HDF5 - D. Rennehan
+  if file_format == 'hdf5':
+    if gas:
+      return [coords, vels, U, rho]
+    else:
+      return [coords, vels]
   else:
-    return [coords[0], vels[0]]
+    if(gas):
+      return [coords[0], vels[0], U, rho]
+    else:
+      return [coords[0], vels[0]]
 
 
 def dehnen_inverse_cumulative(Mc, M, a, core):
@@ -495,16 +517,19 @@ def write_input_file(galaxy_data):
       Zs.fill(Z)
       write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
         outfile=output,
-        data_list=[coords, vels, ids, masses, U, rho, smooths, Zs])
+        data_list=[coords, vels, ids, masses, U, rho, smooths, Zs],
+        file_format=file_format)
     else:
       write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
         outfile=output,
-        data_list=[coords, vels, ids, masses, U, rho, smooths])
+        data_list=[coords, vels, ids, masses, U, rho, smooths],
+        file_format=file_format)
   else:
     masses = np.concatenate((m_halo, m_disk, m_bulge))
     write_snapshot(n_part=[0, N_halo, N_disk, N_bulge, 0, 0],
       outfile=output,
-      data_list=[coords, vels, ids, masses])
+      data_list=[coords, vels, ids, masses],
+      file_format=file_format)
 
 
 if __name__ == '__main__':
