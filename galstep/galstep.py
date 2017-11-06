@@ -72,8 +72,8 @@ def init():
   else:
     file_format = 'gadget2'
 
-  if not (path.isfile("header.txt") and path.isfile("params_galaxy.ini")):
-    print "header.txt or params_galaxy.ini missing."
+  if not path.isfile("params_galaxy.ini"):
+    print "params_galaxy.ini missing."
     exit(0)
 
   config = ConfigParser()
@@ -131,8 +131,8 @@ def generate_galaxy():
 
   if path.isfile('potential_data.txt'):
     if not force_yes:
-      print ("Use existing potential tabulation in potential_data.txt?\
-              Make sure it refers to the current parameters. (y/n)")
+      print ("Use existing potential tabulation in potential_data.txt?\n"\
+              "Make sure it refers to the current parameters. (y/n)")
       ans = raw_input()
       while ans not in "yn":
         print "Please give a proper answer. (y/n)"
