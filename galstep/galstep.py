@@ -34,9 +34,11 @@ def main():
 
 
 def init():
-  global M_halo, M_disk, M_bulge, M_gas, halo_cut_r, halo_cut_M
+  global M_halo, M_disk, M_bulge, M_gas
   global N_halo, N_disk, N_bulge, N_gas
-  global a_halo, a_bulge, Rd, z0, z0_gas, bulge_cut_r, bulge_cut_M
+  global a_halo, a_bulge, Rd, z0, z0_gas
+  global halo_cut_r, halo_cut_M, bulge_cut_r, bulge_cut_M
+  global disk_cut_r, disk_cut
   global N_total, M_total
   global phi_grid, rho_axis, z_axis, N_rho, Nz
   global halo_core, bulge_core, N_CORES, force_yes, output, gas, factor, Z
@@ -90,6 +92,7 @@ def init():
   Rd = config.getfloat('disk', 'Rd')
   z0 = config.getfloat('disk', 'z0')
   factor = config.getfloat('disk', 'factor')
+  disk_cut_r = config.getfloat('disk', 'disk_cut_r')
   # Bulge
   M_bulge = config.getfloat('bulge', 'M_bulge')
   a_bulge = config.getfloat('bulge', 'a_bulge')
@@ -261,9 +264,14 @@ def set_bulge_positions():
 
 
 def set_disk_positions(N, z0):
+  global disk_cut
   radii = np.zeros(N)
-  # The maximum radius is restricted to 60 kpc.
-  sample = nprand.sample(N) * disk_radial_cumulative(60)
+  disk_cut = disk_radial_cumulative(disk_cut_r)
+  print disk_cut
+  if disk_cut < 0.9:
+    print "Warning: more than 10%% (%.0f%%) of disk mass cut by " \
+          "the truncation..." % (100*(1-disk_cut))
+  sample = nprand.sample(N) * disk_cut
   for i, s in enumerate(sample):
     radii[i] = disk_radial_inverse_cumulative(s)
   zs = disk_height_inverse_cumulative(nprand.sample(N), z0)
@@ -509,14 +517,14 @@ def write_input_file(galaxy_data):
   m_halo = np.empty(N_halo)
   m_halo.fill(halo_cut_M/N_halo)
   m_disk = np.empty(N_disk)
-  m_disk.fill(M_disk/N_disk)
+  m_disk.fill(M_disk*disk_cut/N_disk)
   m_bulge = np.empty(N_bulge)
   m_bulge.fill(bulge_cut_M/N_bulge)
   if(gas):
     U = galaxy_data[2]
     rho = galaxy_data[3]
     m_gas = np.empty(N_gas)
-    m_gas.fill(M_gas/N_gas)
+    m_gas.fill(M_gas*disk_cut/N_gas)
     masses = np.concatenate((m_gas, m_halo, m_disk, m_bulge))
     smooths = np.zeros(N_gas)
     if Z > 0:
