@@ -232,9 +232,10 @@ def bulge_density(r):
 def set_halo_positions():
   global halo_cut_M
   halo_cut_M = cumulative(halo_cut_r, M_halo, a_halo, halo_core)
+  print "%.0f%% of halo mass cut by the truncation..." % \
+        (100*(1-halo_cut_M/M_halo))
   if halo_cut_M < 0.9*M_halo:
-    print "Warning: more than 10%% (%.0f%%) of halo mass cut by " \
-          "the truncation..." % (100*(1-halo_cut_M/M_halo))
+    print "  \_ Warning: this is more than 10%% of the total halo mass!"
   radii = dehnen_inverse_cumulative(nprand.sample(N_halo) * halo_cut_M,
     M_halo, a_halo, halo_core)
   thetas = np.arccos(nprand.sample(N_halo)*2 - 1)
@@ -249,9 +250,10 @@ def set_halo_positions():
 def set_bulge_positions():
   global bulge_cut_M
   bulge_cut_M = cumulative(bulge_cut_r, M_bulge, a_bulge, bulge_core)
+  print "%.0f%% of bulge mass cut by the truncation..." % \
+        (100*(1-bulge_cut_M/M_bulge))
   if bulge_cut_M < 0.9*M_bulge:
-    print "Warning: more than 10%% (%.0f%%) of bulge mass cut by " \
-          "the truncation..." % (100*(1-bulge_cut_M/M_bulge))
+    print "  \_ Warning: this is more than 10%% of the total bulge mass!"
   radii = dehnen_inverse_cumulative(nprand.sample(N_bulge) * bulge_cut_M,
     M_bulge, a_bulge, bulge_core)
   thetas = np.arccos(nprand.sample(N_bulge)*2 - 1)
@@ -267,10 +269,10 @@ def set_disk_positions(N, z0):
   global disk_cut
   radii = np.zeros(N)
   disk_cut = disk_radial_cumulative(disk_cut_r)
-  print disk_cut
+  print "%.0f%% of disk mass cut by the truncation..." % \
+        (100*(1-disk_cut))
   if disk_cut < 0.9:
-    print "Warning: more than 10%% (%.0f%%) of disk mass cut by " \
-          "the truncation..." % (100*(1-disk_cut))
+    print "  \_ Warning: this is more than 10% of the total disk mass!"
   sample = nprand.sample(N) * disk_cut
   for i, s in enumerate(sample):
     radii[i] = disk_radial_inverse_cumulative(s)
