@@ -34,9 +34,9 @@ def main():
 
 
 def init():
-  global M_halo, M_disk, M_bulge, M_gas
+  global M_halo, M_disk, M_bulge, M_gas, halo_cut_r, halo_cut_M
   global N_halo, N_disk, N_bulge, N_gas
-  global a_halo, a_bulge, Rd, z0, z0_gas
+  global a_halo, a_bulge, Rd, z0, z0_gas, bulge_cut_r, bulge_cut_M
   global N_total, M_total
   global phi_grid, rho_axis, z_axis, N_rho, Nz
   global halo_core, bulge_core, N_CORES, force_yes, output, gas, factor, Z
@@ -83,6 +83,7 @@ def init():
   a_halo = config.getfloat('halo', 'a_halo')
   N_halo = config.getint('halo', 'N_halo')
   halo_core = config.getboolean('halo', 'halo_core')
+  halo_cut_r = config.getfloat('halo', 'halo_cut_r')
   # Disk
   M_disk = config.getfloat('disk', 'M_disk')
   N_disk = config.getint('disk', 'N_disk')
@@ -94,7 +95,7 @@ def init():
   a_bulge = config.getfloat('bulge', 'a_bulge')
   N_bulge = config.getint('bulge', 'N_bulge')
   bulge_core = config.getboolean('bulge', 'bulge_core')
-
+  bulge_cut_r = config.getfloat('bulge', 'bulge_cut_r')
   # Gas
   M_gas = config.getfloat('gas', 'M_gas')
   N_gas = config.getint('gas', 'N_gas')
@@ -225,11 +226,13 @@ def bulge_density(r):
     return M_bulge/(2*pi) * a_bulge/(r*(r+a_bulge)**3)
 
 
-# Positions are restricted to the radius where 90% of the mass is
-# at, so particles don't go too far
 def set_halo_positions():
-  factor = 0.9*M_halo
-  radii = dehnen_inverse_cumulative(nprand.sample(N_halo) * factor,
+  global halo_cut_M
+  halo_cut_M = cumulative(halo_cut_r, M_halo, a_halo, halo_core)
+  if halo_cut_M < 0.9*M_halo:
+    print "Warning: more than 10%% (%.0f%%) of halo mass cut by " \
+          "the truncation..." % (100*(1-halo_cut_M/M_halo))
+  radii = dehnen_inverse_cumulative(nprand.sample(N_halo) * halo_cut_M,
     M_halo, a_halo, halo_core)
   thetas = np.arccos(nprand.sample(N_halo)*2 - 1)
   phis = 2 * pi * nprand.sample(N_halo)
@@ -241,8 +244,12 @@ def set_halo_positions():
 
 
 def set_bulge_positions():
-  factor = 0.9*M_bulge
-  radii = dehnen_inverse_cumulative(nprand.sample(N_bulge) * factor,
+  global bulge_cut_M
+  bulge_cut_M = cumulative(bulge_cut_r, M_bulge, a_bulge, bulge_core)
+  if bulge_cut_M < 0.9*M_bulge:
+    print "Warning: more than 10%% (%.0f%%) of bulge mass cut by " \
+          "the truncation..." % (100*(1-bulge_cut_M/M_bulge))
+  radii = dehnen_inverse_cumulative(nprand.sample(N_bulge) * bulge_cut_M,
     M_bulge, a_bulge, bulge_core)
   thetas = np.arccos(nprand.sample(N_bulge)*2 - 1)
   phis = 2 * pi * nprand.sample(N_bulge)
@@ -500,11 +507,11 @@ def write_input_file(galaxy_data):
   vels = galaxy_data[1]
   ids = np.arange(1, N_total+1, 1)
   m_halo = np.empty(N_halo)
-  m_halo.fill(M_halo/N_halo)
+  m_halo.fill(halo_cut_M/N_halo)
   m_disk = np.empty(N_disk)
   m_disk.fill(M_disk/N_disk)
   m_bulge = np.empty(N_bulge)
-  m_bulge.fill(M_bulge/N_bulge)
+  m_bulge.fill(bulge_cut_M/N_bulge)
   if(gas):
     U = galaxy_data[2]
     rho = galaxy_data[3]
