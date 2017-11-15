@@ -1,6 +1,6 @@
 ## About
 
-This code uses the algorithm found in Springel, Di Matteo & Hernquist
+This code uses the algorithm described in Springel, Di Matteo & Hernquist
 (2005) for generating the initial conditions for a disk galaxy simulation
 with the codes GADGET-2 or RAMSES (using the [DICE patch](https://bitbucket.org/vperret/dice/wiki/RAMSES%20simulation)), including 
 a stellar disk, a gaseous disk, a dark matter halo and a stellar bulge. The
