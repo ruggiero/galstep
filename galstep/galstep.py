@@ -459,7 +459,6 @@ def set_velocities(coords, T_cl_grid):
     elif(i >= N_gas+N_halo and i < N_gas+N_halo+N_disk):
       sigmaz = sz_grid[1][bestr][bestz]
       sigmap = sphi_grid[1][bestr][0]
-      print sigmaz
       vz = nprand.normal(scale=sigmaz**0.5)
       vr = nprand.normal(scale=factor*sigmaz**0.5)
       vphi = nprand.normal(scale=factor*sigmap**0.5)
