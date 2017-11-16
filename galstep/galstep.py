@@ -189,7 +189,7 @@ def generate_galaxy():
 
 
 def dehnen_cumulative(r, M, a, gamma):
-  return M * (r/(r+a))**(3-gamma)
+  return M * (r/(r+float(a)))**(3-gamma)
 
 
 # Inverse cumulative mass function. Mc is a number between 0 and M.
@@ -202,13 +202,13 @@ def dehnen_inverse_cumulative(Mc, M, a, gamma):
 
 def dehnen_potential(r, M, a, gamma):
   if gamma != 2:
-    return (G*M)/a * (-1.0/(2-gamma)) * (1-(r/(r+a))**(2-gamma))
+    return (G*M)/a * (-1.0/(2-gamma)) * (1-(r/(r+float(a)))**(2-gamma))
   else:
-    return (G*M)/a * np.log(r/(r+a))
+    return (G*M)/a * np.log(r/(r+float(a)))
 
 
 def dehnen_density(r, M, a, gamma):
-  return ((3-gamma)*M)/(4*np.pi) * a/(r**gamma * (r+a)**(4-gamma))
+  return ((3-gamma)*M)/(4*np.pi) * a/(r**gamma * (r+float(a))**(4-gamma))
 
 
 def disk_density(rho, z, M, z0):
@@ -459,6 +459,7 @@ def set_velocities(coords, T_cl_grid):
     elif(i >= N_gas+N_halo and i < N_gas+N_halo+N_disk):
       sigmaz = sz_grid[1][bestr][bestz]
       sigmap = sphi_grid[1][bestr][0]
+      print sigmaz
       vz = nprand.normal(scale=sigmaz**0.5)
       vr = nprand.normal(scale=factor*sigmaz**0.5)
       vphi = nprand.normal(scale=factor*sigmap**0.5)
