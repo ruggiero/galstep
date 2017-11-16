@@ -41,7 +41,7 @@ def init():
   global disk_cut_r, disk_cut
   global N_total, M_total
   global phi_grid, rho_axis, z_axis, N_rho, Nz
-  global halo_core, bulge_core, N_CORES, force_yes, output, gas, factor, Z
+  global gamma_halo, gamma_bulge, N_CORES, force_yes, output, gas, factor, Z
   global file_format
 
   flags = parser(description="Generates an initial conditions file for a\
@@ -84,7 +84,7 @@ def init():
   M_halo = config.getfloat('halo', 'M_halo')
   a_halo = config.getfloat('halo', 'a_halo')
   N_halo = config.getint('halo', 'N_halo')
-  halo_core = config.getboolean('halo', 'halo_core')
+  gamma_halo = config.getfloat('halo', 'gamma_halo')
   halo_cut_r = config.getfloat('halo', 'halo_cut_r')
   # Disk
   M_disk = config.getfloat('disk', 'M_disk')
@@ -97,7 +97,7 @@ def init():
   M_bulge = config.getfloat('bulge', 'M_bulge')
   a_bulge = config.getfloat('bulge', 'a_bulge')
   N_bulge = config.getint('bulge', 'N_bulge')
-  bulge_core = config.getboolean('bulge', 'bulge_core')
+  gamma_bulge = config.getfloat('bulge', 'gamma_bulge')
   bulge_cut_r = config.getfloat('bulge', 'bulge_cut_r')
   # Gas
   M_gas = config.getfloat('gas', 'M_gas')
@@ -188,33 +188,27 @@ def generate_galaxy():
       return [coords[0], vels[0]]
 
 
-def dehnen_inverse_cumulative(Mc, M, a, core):
-  if(core):
-    return ((a * (Mc**(2/3.)*M**(4/3.) + Mc*M + Mc**(4/3.)*M**(2/3.))) /
-            (Mc**(1/3.) * M**(2/3.) * (M-Mc)))
+def dehnen_cumulative(r, M, a, gamma):
+  return M * (r/(r+a))**(3-gamma)
+
+
+# Inverse cumulative mass function. Mc is a number between 0 and M.
+def dehnen_inverse_cumulative(Mc, M, a, gamma):
+  results = []
+  for i in Mc:
+    results.append(brentq(lambda r: dehnen_cumulative(r, M, a, gamma) - i, 0, 1.0e10))
+  return np.array(results)
+
+
+def dehnen_potential(r, M, a, gamma):
+  if gamma != 2:
+    return (G*M)/a * (-1.0/(2-gamma)) * (1-(r/(r+a))**(2-gamma))
   else:
-    return (a * ((Mc*M)**0.5 + Mc)) / (M-Mc)
+    return (G*M)/a * np.log(r/(r+a))
 
 
-def cumulative(r, M, a, core):
-    if(core):
-        return M*r**3/(r+a)**3
-    else:
-        return M*r**2/(r+a)**2
-
-
-def dehnen_potential(r, M, a, core):
-  if(core):
-    return (G*M)/(2*a) * ((r/(r+a))**2 - 1)
-  else:
-    return (G*M)/a * (r/(r+a) - 1)
-
-
-def halo_density(r):
-  if(halo_core):
-    return (3*M_halo)/(4*pi) * a_halo/(r+a_halo)**4
-  else:
-    return M_halo/(2*pi) * a_halo/(r*(r+a_halo)**3)
+def dehnen_density(r, M, a, gamma):
+  return ((3-gamma)*M)/(4*np.pi) * a/(r**gamma * (r+a)**(4-gamma))
 
 
 def disk_density(rho, z, M, z0):
@@ -222,22 +216,15 @@ def disk_density(rho, z, M, z0):
   return cte * (1/cosh(z/z0))**2 * exp(-rho/Rd)
  
 
-def bulge_density(r):
-  if(bulge_core):
-    return (3*M_bulge)/(4*pi) * a_bulge/(r+a_bulge)**4
-  else:
-    return M_bulge/(2*pi) * a_bulge/(r*(r+a_bulge)**3)
-
-
 def set_halo_positions():
   global halo_cut_M
-  halo_cut_M = cumulative(halo_cut_r, M_halo, a_halo, halo_core)
+  halo_cut_M = dehnen_cumulative(halo_cut_r, M_halo, a_halo, gamma_halo)
   print "%.0f%% of halo mass cut by the truncation..." % \
         (100*(1-halo_cut_M/M_halo))
   if halo_cut_M < 0.9*M_halo:
     print "  \_ Warning: this is more than 10%% of the total halo mass!"
   radii = dehnen_inverse_cumulative(nprand.sample(N_halo) * halo_cut_M,
-    M_halo, a_halo, halo_core)
+    M_halo, a_halo, gamma_halo)
   thetas = np.arccos(nprand.sample(N_halo)*2 - 1)
   phis = 2 * pi * nprand.sample(N_halo)
   xs = radii * sin(thetas) * cos(phis)
@@ -249,13 +236,13 @@ def set_halo_positions():
 
 def set_bulge_positions():
   global bulge_cut_M
-  bulge_cut_M = cumulative(bulge_cut_r, M_bulge, a_bulge, bulge_core)
+  bulge_cut_M = dehnen_cumulative(bulge_cut_r, M_bulge, a_bulge, gamma_bulge)
   print "%.0f%% of bulge mass cut by the truncation..." % \
         (100*(1-bulge_cut_M/M_bulge))
   if bulge_cut_M < 0.9*M_bulge:
     print "  \_ Warning: this is more than 10%% of the total bulge mass!"
   radii = dehnen_inverse_cumulative(nprand.sample(N_bulge) * bulge_cut_M,
-    M_bulge, a_bulge, bulge_core)
+    M_bulge, a_bulge, gamma_bulge)
   thetas = np.arccos(nprand.sample(N_bulge)*2 - 1)
   phis = 2 * pi * nprand.sample(N_bulge)
   xs = radii * sin(thetas) * cos(phis)
@@ -332,11 +319,10 @@ def fill_potential_grid(coords_stars, coords_gas=None):
       m = ip[i][0]
       n = ip[i][1]
       r = (rho_axis[m]**2 + z_axis[n]**2)**0.5
-      shared_phi_grid[m][n] += dehnen_potential(r, M_halo, a_halo,
-        halo_core)
+      shared_phi_grid[m][n] += dehnen_potential(r, M_halo, a_halo, gamma_halo)
       shared_phi_grid[m][n] += potential(np.array((rho_axis[m], 0, z_axis[n])),
         gravtree)
-      shared_phi_grid[m][n] += dehnen_potential(r, M_bulge, a_bulge, bulge_core)
+      shared_phi_grid[m][n] += dehnen_potential(r, M_bulge, a_bulge, gamma_bulge)
   shared_phi_grid = [Array('f', phi_grid[i]) for i in range(len(phi_grid))]
   prog = Array('f', [0]*N_CORES)
   proc=[Process(target=loop, args=(n, N_CORES)) for n in range(N_CORES)]
@@ -386,15 +372,15 @@ def generate_sigma_grids():
       r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
       dz = z_axis[j+1] - z_axis[j]
       dphi = phi_grid[i][j+1] - phi_grid[i][j]
-      ys[0][i][j] = halo_density(r) * dphi/dz 
+      ys[0][i][j] = dehnen_density(r, M_halo, a_halo, gamma_halo) * dphi/dz 
       ys[1][i][j] = disk_density(rho_axis[i], z_axis[j], M_disk, z0) * dphi/dz
-      ys[2][i][j] = bulge_density(r) * dphi/dz 
+      ys[2][i][j] = dehnen_density(r, M_bulge, a_bulge, gamma_bulge) * dphi/dz 
     for j in range(0, Nz-1):
       r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
-      sz_grid[0][i][j] = 1/halo_density(r) * integrate.simps(ys[0][i][j:], z_axis[j:])
+      sz_grid[0][i][j] = 1/dehnen_density(r, M_halo, a_halo, gamma_halo) * integrate.simps(ys[0][i][j:], z_axis[j:])
       sz_grid[1][i][j] = (1/disk_density(rho_axis[i], z_axis[j], M_disk, z0) * 
         integrate.simps(ys[1][i][j:], z_axis[j:]))
-      sz_grid[2][i][j] = 1/bulge_density(r) * integrate.simps(ys[2][i][j:], z_axis[j:])
+      sz_grid[2][i][j] = 1/dehnen_density(r, M_bulge, a_bulge, gamma_bulge) * integrate.simps(ys[2][i][j:], z_axis[j:])
 
   sphi_grid = np.zeros((3, N_rho, Nz))
 #  aux_grid = np.zeros(N_rho)
@@ -404,9 +390,9 @@ def generate_sigma_grids():
       r1 = (rho_axis[i+1]**2 + z_axis[j]**2)**0.5
       drho = rho_axis[i+1] - rho_axis[i]
       dphi = phi_grid[i+1][j] - phi_grid[i][j]
-      sphi_grid[0][i][j] = (sz_grid[0][i][j] + rho_axis[i]/halo_density(r0) * 
-        (halo_density(r1)*sz_grid[0][i+1][j] - 
-        halo_density(r0)*sz_grid[0][i][j]) / drho + rho_axis[i] * dphi/drho)
+      sphi_grid[0][i][j] = (sz_grid[0][i][j] + rho_axis[i]/dehnen_density(r0, M_halo, a_halo, gamma_halo) * 
+        (dehnen_density(r1, M_halo, a_halo, gamma_halo)*sz_grid[0][i+1][j] - 
+        dehnen_density(r0, M_halo, a_halo, gamma_halo)*sz_grid[0][i][j]) / drho + rho_axis[i] * dphi/drho)
       if(j == 0):
         kappa2 = 3/rho_axis[i] * dphi/drho + d2phi_drho2(i, j)
         gamma2 = 4/(kappa2*rho_axis[i]) * dphi/drho
@@ -420,9 +406,9 @@ def generate_sigma_grids():
           sphi_grid[1][0][j] = sphi_grid[1][1][j]
 #          aux_grid[0] = aux_grid[1]
 #          aux_grid[N_rho-1] = aux_grid[N_rho-2]
-      sphi_grid[2][i][j] = (sz_grid[2][i][j] + rho_axis[i]/bulge_density(r0) * 
-        (bulge_density(r1)*sz_grid[2][i+1][j] - 
-        bulge_density(r0)*sz_grid[2][i][j]) / drho + rho_axis[i] * dphi/drho)
+      sphi_grid[2][i][j] = (sz_grid[2][i][j] + rho_axis[i]/dehnen_density(r0, M_bulge, a_bulge, gamma_bulge) * 
+        (dehnen_density(r1, M_bulge, a_bulge, gamma_bulge)*sz_grid[2][i+1][j] - 
+        dehnen_density(r0, M_bulge, a_bulge, gamma_bulge)*sz_grid[2][i][j]) / drho + rho_axis[i] * dphi/drho)
       for k in [0, 2]:
         sphi_grid[k][0][j] = sphi_grid[k][1][j]
 #  return sz_grid, sphi_grid, aux_grid
