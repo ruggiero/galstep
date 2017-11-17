@@ -61,6 +61,8 @@ def init():
                      action = 'store_true')
   flags.add_argument('-o', help='The name of the output file.',
                      metavar="init.dat", default="init.dat")
+  flags.add_argument('-i', help='The name of the .ini file.',
+                     metavar="params_galaxy.ini", default="params_galaxy.ini")
   args = flags.parse_args()
   N_CORES = int(args.cores)
   force_yes = args.force_yes
@@ -71,12 +73,12 @@ def init():
   else:
     file_format = 'gadget2'
 
-  if not path.isfile("params_galaxy.ini"):
-    print "params_galaxy.ini missing."
+  if not path.isfile(args.i):
+    print "Input file not found:", args.i
     exit(0)
 
   config = ConfigParser()
-  config.read("params_galaxy.ini")
+  config.read(args.i)
   # Halo
   M_halo = config.getfloat('halo', 'M_halo')
   a_halo = config.getfloat('halo', 'a_halo')
