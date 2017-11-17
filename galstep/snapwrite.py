@@ -5,11 +5,10 @@ import numpy as np
 from ConfigParser import ConfigParser
 
 
-config = ConfigParser()
-config.read("params_galaxy.ini")
-
-
-def read_header(folder, n_part):
+def read_header(folder, n_part, input_):
+  global config
+  config = ConfigParser()
+  config.read(input_)
   h_data = []
   for j in n_part: # n_part
     h_data.append(int(j))
@@ -66,8 +65,8 @@ def write_block(f, block_data, data_type, block_name):
   write_dummy(f, [nbytes])
 
 
-def write_snapshot(n_part, folder=None, data_list=None, outfile='init.dat',
-          file_format='gadget2'):
+def write_snapshot(n_part, input_, folder=None, data_list=None,
+                   outfile='init.dat', file_format='gadget2'):
   N_gas = n_part[0]
   folder = os.getcwd()
 
@@ -83,7 +82,7 @@ def write_snapshot(n_part, folder=None, data_list=None, outfile='init.dat',
 
   if len(data_list) > 7:
     Z = data_list[7]
-  header_data, raw_hdata = read_header(folder, n_part)
+  header_data, raw_hdata = read_header(folder, n_part, input_)
 
   if file_format == 'hdf5':
     import h5py

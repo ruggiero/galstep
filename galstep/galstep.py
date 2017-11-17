@@ -41,7 +41,7 @@ def init():
   global disk_cut_r, disk_cut
   global N_total, M_total
   global phi_grid, rho_axis, z_axis, N_rho, Nz
-  global N_CORES, force_yes, output, gas, bulge, factor, Z
+  global N_CORES, force_yes, output, input_, gas, bulge, factor, Z
   global file_format
 
   flags = parser(description="Generates an initial conditions file for a\
@@ -67,18 +67,19 @@ def init():
   N_CORES = int(args.cores)
   force_yes = args.force_yes
   output = args.o
+  input_ = args.i
   
   if args.hdf5:
     file_format = 'hdf5'
   else:
     file_format = 'gadget2'
 
-  if not path.isfile(args.i):
-    print "Input file not found:", args.i
+  if not path.isfile(input_):
+    print "Input file not found:", input_
     exit(0)
 
   config = ConfigParser()
-  config.read(args.i)
+  config.read(input_)
   # Halo
   M_halo = config.getfloat('halo', 'M_halo')
   a_halo = config.getfloat('halo', 'a_halo')
@@ -535,12 +536,14 @@ def write_input_file(galaxy_data):
     if Z > 0:
       Zs = np.zeros(N_gas + N_disk + N_bulge)
       Zs.fill(Z)
-      write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
+      write_snapshot([N_gas, N_halo, N_disk, N_bulge, 0, 0],
+        input_,
         outfile=output,
         data_list=[coords, vels, ids, masses, U, rho, smooths, Zs],
         file_format=file_format)
     else:
-      write_snapshot(n_part=[N_gas, N_halo, N_disk, N_bulge, 0, 0],
+      write_snapshot([N_gas, N_halo, N_disk, N_bulge, 0, 0],
+        input_,
         outfile=output,
         data_list=[coords, vels, ids, masses, U, rho, smooths],
         file_format=file_format)
@@ -549,7 +552,8 @@ def write_input_file(galaxy_data):
       masses = np.concatenate((m_halo, m_disk, m_bulge))
     else:
       masses = np.concatenate((m_halo, m_disk))
-    write_snapshot(n_part=[0, N_halo, N_disk, N_bulge, 0, 0],
+    write_snapshot([0, N_halo, N_disk, N_bulge, 0, 0],
+      input_,
       outfile=output,
       data_list=[coords, vels, ids, masses],
       file_format=file_format)
