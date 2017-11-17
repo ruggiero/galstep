@@ -36,12 +36,12 @@ def main():
 def init():
   global M_halo, M_disk, M_bulge, M_gas
   global N_halo, N_disk, N_bulge, N_gas
-  global a_halo, a_bulge, Rd, z0, z0_gas
+  global a_halo, a_bulge, gamma_halo, gamma_bulge, Rd, z0, z0_gas
   global halo_cut_r, halo_cut_M, bulge_cut_r, bulge_cut_M
   global disk_cut_r, disk_cut
   global N_total, M_total
   global phi_grid, rho_axis, z_axis, N_rho, Nz
-  global gamma_halo, gamma_bulge, N_CORES, force_yes, output, gas, factor, Z
+  global N_CORES, force_yes, output, gas, bulge, factor, Z
   global file_format
 
   flags = parser(description="Generates an initial conditions file for a\
@@ -94,6 +94,7 @@ def init():
   factor = config.getfloat('disk', 'factor')
   disk_cut_r = config.getfloat('disk', 'disk_cut_r')
   # Bulge
+  bulge = config.getboolean('bulge', 'include')
   M_bulge = config.getfloat('bulge', 'M_bulge')
   a_bulge = config.getfloat('bulge', 'a_bulge')
   N_bulge = config.getint('bulge', 'N_bulge')
@@ -108,7 +109,8 @@ def init():
   z0_gas *= z0
   if not gas:
     N_gas = 0
-    M_gas = 0
+  if not bulge:
+    N_bulge = 0
   M_total = M_disk + M_bulge + M_halo + M_gas
   N_total = N_disk + N_bulge + N_halo + N_gas
   N_rho = config.getint('global', 'N_rho')
@@ -125,13 +127,20 @@ def generate_galaxy():
   print "Setting positions..."
   coords_halo = set_halo_positions()
   coords_stars = set_disk_positions(N_disk, z0)
-  coords_bulge = set_bulge_positions()
+  if(bulge):
+    coords_bulge = set_bulge_positions()
   if(gas):
     coords_gas = set_disk_positions(N_gas, z0_gas)
-    coords = np.concatenate((coords_gas, coords_halo, coords_stars,
-                             coords_bulge))
+    if(bulge):
+      coords = np.concatenate((coords_gas, coords_halo, coords_stars,
+                               coords_bulge))
+    else:
+      coords = np.concatenate((coords_gas, coords_halo, coords_stars))
   else:
-    coords = np.concatenate((coords_halo, coords_stars, coords_bulge))
+    if(bulge):
+      coords = np.concatenate((coords_halo, coords_stars, coords_bulge))
+    else:
+      coords = np.concatenate((coords_halo, coords_stars))
 
   if path.isfile('potential_data.txt'):
     if not force_yes:
@@ -322,7 +331,8 @@ def fill_potential_grid(coords_stars, coords_gas=None):
       shared_phi_grid[m][n] += dehnen_potential(r, M_halo, a_halo, gamma_halo)
       shared_phi_grid[m][n] += potential(np.array((rho_axis[m], 0, z_axis[n])),
         gravtree)
-      shared_phi_grid[m][n] += dehnen_potential(r, M_bulge, a_bulge, gamma_bulge)
+      if(bulge):
+        shared_phi_grid[m][n] += dehnen_potential(r, M_bulge, a_bulge, gamma_bulge)
   shared_phi_grid = [Array('f', phi_grid[i]) for i in range(len(phi_grid))]
   prog = Array('f', [0]*N_CORES)
   proc=[Process(target=loop, args=(n, N_CORES)) for n in range(N_CORES)]
@@ -374,13 +384,15 @@ def generate_sigma_grids():
       dphi = phi_grid[i][j+1] - phi_grid[i][j]
       ys[0][i][j] = dehnen_density(r, M_halo, a_halo, gamma_halo) * dphi/dz 
       ys[1][i][j] = disk_density(rho_axis[i], z_axis[j], M_disk, z0) * dphi/dz
-      ys[2][i][j] = dehnen_density(r, M_bulge, a_bulge, gamma_bulge) * dphi/dz 
+      if(bulge):
+        ys[2][i][j] = dehnen_density(r, M_bulge, a_bulge, gamma_bulge) * dphi/dz 
     for j in range(0, Nz-1):
       r = (rho_axis[i]**2 + z_axis[j]**2)**0.5
       sz_grid[0][i][j] = 1/dehnen_density(r, M_halo, a_halo, gamma_halo) * integrate.simps(ys[0][i][j:], z_axis[j:])
       sz_grid[1][i][j] = (1/disk_density(rho_axis[i], z_axis[j], M_disk, z0) * 
         integrate.simps(ys[1][i][j:], z_axis[j:]))
-      sz_grid[2][i][j] = 1/dehnen_density(r, M_bulge, a_bulge, gamma_bulge) * integrate.simps(ys[2][i][j:], z_axis[j:])
+      if(bulge):
+        sz_grid[2][i][j] = 1/dehnen_density(r, M_bulge, a_bulge, gamma_bulge) * integrate.simps(ys[2][i][j:], z_axis[j:])
 
   sphi_grid = np.zeros((3, N_rho, Nz))
 #  aux_grid = np.zeros(N_rho)
@@ -406,9 +418,10 @@ def generate_sigma_grids():
           sphi_grid[1][0][j] = sphi_grid[1][1][j]
 #          aux_grid[0] = aux_grid[1]
 #          aux_grid[N_rho-1] = aux_grid[N_rho-2]
-      sphi_grid[2][i][j] = (sz_grid[2][i][j] + rho_axis[i]/dehnen_density(r0, M_bulge, a_bulge, gamma_bulge) * 
-        (dehnen_density(r1, M_bulge, a_bulge, gamma_bulge)*sz_grid[2][i+1][j] - 
-        dehnen_density(r0, M_bulge, a_bulge, gamma_bulge)*sz_grid[2][i][j]) / drho + rho_axis[i] * dphi/drho)
+      if(bulge):
+        sphi_grid[2][i][j] = (sz_grid[2][i][j] + rho_axis[i]/dehnen_density(r0, M_bulge, a_bulge, gamma_bulge) * 
+          (dehnen_density(r1, M_bulge, a_bulge, gamma_bulge)*sz_grid[2][i+1][j] - 
+          dehnen_density(r0, M_bulge, a_bulge, gamma_bulge)*sz_grid[2][i][j]) / drho + rho_axis[i] * dphi/drho)
       for k in [0, 2]:
         sphi_grid[k][0][j] = sphi_grid[k][1][j]
 #  return sz_grid, sphi_grid, aux_grid
@@ -506,14 +519,18 @@ def write_input_file(galaxy_data):
   m_halo.fill(halo_cut_M/N_halo)
   m_disk = np.empty(N_disk)
   m_disk.fill(M_disk*disk_cut/N_disk)
-  m_bulge = np.empty(N_bulge)
-  m_bulge.fill(bulge_cut_M/N_bulge)
+  if(bulge):
+    m_bulge = np.empty(N_bulge)
+    m_bulge.fill(bulge_cut_M/N_bulge)
   if(gas):
     U = galaxy_data[2]
     rho = galaxy_data[3]
     m_gas = np.empty(N_gas)
     m_gas.fill(M_gas*disk_cut/N_gas)
-    masses = np.concatenate((m_gas, m_halo, m_disk, m_bulge))
+    if(bulge):
+      masses = np.concatenate((m_gas, m_halo, m_disk, m_bulge))
+    else:
+      masses = np.concatenate((m_gas, m_halo, m_disk))
     smooths = np.zeros(N_gas)
     if Z > 0:
       Zs = np.zeros(N_gas + N_disk + N_bulge)
@@ -528,7 +545,10 @@ def write_input_file(galaxy_data):
         data_list=[coords, vels, ids, masses, U, rho, smooths],
         file_format=file_format)
   else:
-    masses = np.concatenate((m_halo, m_disk, m_bulge))
+    if(bulge):
+      masses = np.concatenate((m_halo, m_disk, m_bulge))
+    else:
+      masses = np.concatenate((m_halo, m_disk))
     write_snapshot(n_part=[0, N_halo, N_disk, N_bulge, 0, 0],
       outfile=output,
       data_list=[coords, vels, ids, masses],
