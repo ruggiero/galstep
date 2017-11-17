@@ -47,8 +47,6 @@ def init():
   flags = parser(description="Generates an initial conditions file for a\
                               galaxy simulation with halo, stellar disk,\
                               gaseous disk and bulge components.")
-  flags.add_argument('--nogas', help='Generates a galaxy without gas.',
-                     action='store_true')
   flags.add_argument('-cores', help='The number of cores to use during the\
                                      potential canculation. Make sure this\
                                      number is a factor of N_rho*N_z. Default\
@@ -64,7 +62,6 @@ def init():
   flags.add_argument('-o', help='The name of the output file.',
                      metavar="init.dat", default="init.dat")
   args = flags.parse_args()
-  gas = not args.nogas
   N_CORES = int(args.cores)
   force_yes = args.force_yes
   output = args.o
@@ -101,6 +98,7 @@ def init():
   gamma_bulge = config.getfloat('bulge', 'gamma_bulge')
   bulge_cut_r = config.getfloat('bulge', 'bulge_cut_r')
   # Gas
+  gas = config.getboolean('gas', 'include')
   M_gas = config.getfloat('gas', 'M_gas')
   N_gas = config.getint('gas', 'N_gas')
   z0_gas = config.getfloat('gas', 'z0_gas')

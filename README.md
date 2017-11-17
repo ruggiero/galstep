@@ -37,15 +37,13 @@ of the box in RAMSES with the DICE patch.
 You can run `python galstep.py --help` to see the message below. Also please
 check out the `galaxy_params.ini` file to see the available free parameters.
 
-    usage: galstep.py [-h] [--nogas] [-cores CORES] [--force-yes] [--hdf5]
-                      [-o init.dat]
-
+    usage: galstep.py [-h] [-cores CORES] [--force-yes] [--hdf5] [-o init.dat]
+    
     Generates an initial conditions file for a galaxy simulation with halo,
     stellar disk, gaseous disk and bulge components.
-
+    
     optional arguments:
       -h, --help    show this help message and exit
-      --nogas       Generates a galaxy without gas.
       -cores CORES  The number of cores to use during the potential canculation.
                     Make sure this number is a factor of N_rho*N_z. Default is 1.
       --force-yes   Don't ask if you want to use the existing potential_data.txt
