@@ -37,20 +37,24 @@ of the box in RAMSES with the DICE patch.
 You can run `python galstep.py --help` to see the message below. Also please
 check out the `galaxy_params.ini` file to see the available free parameters.
 
-    usage: galstep.py [-h] [-cores CORES] [--force-yes] [--hdf5] [-o init.dat]
+    usage: galstep.py [-h] [-cores CORES] [--force-yes] [--force-no] [--hdf5]
+                      [-o init.dat] [-i params_galaxy.ini]
     
     Generates an initial conditions file for a galaxy simulation with halo,
     stellar disk, gaseous disk and bulge components.
     
     optional arguments:
-      -h, --help    show this help message and exit
-      -cores CORES  The number of cores to use during the potential canculation.
-                    Make sure this number is a factor of N_rho*N_z. Default is 1.
-      --force-yes   Don't ask if you want to use the existing potential_data.txt
-                    file. Useful for automating the execution of the script.
-      --hdf5        Output initial conditions in HDF5 format.
-      -o init.dat   The name of the output file.
-
+      -h, --help            show this help message and exit
+      -cores CORES          The number of cores to use during the potential
+                            canculation. Make sure this number is a factor of
+                            N_rho*N_z. Default is 1.
+      --force-yes           Don't ask if you want to use the existing
+                            potential_data.txt file. Useful for automating the
+                            execution of the script.
+      --force-no            Same as above, but with the opposite effect.
+      --hdf5                Output initial conditions in HDF5 format.
+      -o init.dat           The name of the output file.
+      -i params_galaxy.ini  The name of the .ini file.
 
 ## Troubleshooting
 
