@@ -41,7 +41,7 @@ def init():
   global disk_cut_r, disk_cut
   global N_total, M_total
   global phi_grid, rho_axis, z_axis, N_rho, Nz
-  global N_CORES, force_yes, output, input_, gas, bulge, factor, Z
+  global N_CORES, force_yes, force_no, output, input_, gas, bulge, factor, Z
   global file_format
 
   flags = parser(description="Generates an initial conditions file for a\
@@ -56,6 +56,8 @@ def init():
                                           existing potential_data.txt file.\
                                           Useful for automating the execution\
                                           of the script.', action='store_true')
+  flags.add_argument('--force-no', help='Same as above, but with the opposite\
+                                         effect.', action='store_true')
   flags.add_argument('--hdf5', help='Output initial conditions in HDF5\
                                      format.',
                      action = 'store_true')
@@ -66,6 +68,7 @@ def init():
   args = flags.parse_args()
   N_CORES = int(args.cores)
   force_yes = args.force_yes
+  force_no = args.force_no
   output = args.o
   input_ = args.i
   
@@ -144,14 +147,17 @@ def generate_galaxy():
       coords = np.concatenate((coords_halo, coords_stars))
 
   if path.isfile('potential_data.txt'):
-    if not force_yes:
+    if force_yes:
+      ans = "y"
+    elif force_no:
+      ans = "n"
+    else:
       print ("Use existing potential tabulation in potential_data.txt?\n"\
               "Make sure it refers to the current parameters. (y/n)")
       ans = raw_input()
       while ans not in "yn":
         print "Please give a proper answer. (y/n)"
         ans = raw_input()
-    else: ans = "y"
     if ans == "y":
       phi_grid = np.loadtxt('potential_data.txt')
     else:
