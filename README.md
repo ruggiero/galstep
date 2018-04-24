@@ -9,14 +9,24 @@ two a Dehnen density profile with gamma=1 by default, corresponding to a
 Hernquist profile. You can check out the expressions in
 [Ruggiero & Lima Neto (2017)](http://adsabs.harvard.edu/cgi-bin/bib_query?arXiv:1703.08550).
 
-Some notes: this method fails to generate low mass halos (~10^10 solar
-masses) in equilibrium, since the velocity distribution for these near
-the center is strongly non gaussian. Secondly, if you run GADGET-2
-without any gas cooling, the gaseous disk will gain lots of energy over
-time due to the artificial viscosity, and will get a lot thicker. Lastly,
-the gas component must me relaxed for a few hundred Myr to reach equilibrium
-in case your simulation doesn't include radiative cooling. If it does,
-relaxation will be a lot faster (a few tens of Myr at most).
+Some notes which might save you some time:
+
+1- Using this method, some combinations of component masses lead the dark
+matter halo to be unrelaxated near the very center of the galaxy. If
+that is the case for your galaxy, you will see a ring appearing in
+its stellar disk in less than one rotation time. When that happens,
+I like to relaxate the halo for a few hundred Myr while keeping the
+other components frozen (both Gadget2 and RAMSES can do that) in order
+to ensure a good state of equilibrium.
+
+2- If you run GADGET-2 without any gas cooling, the gaseous disk will
+gain lots of energy over time due to the artificial viscosity, and will
+get a lot thicker.
+
+3- The vertical equilibrium of the gas component depends on your
+simulation setup.  If you use radiative cooling, it will settle in a
+very short timescale (a few tens of Myr at most).  If not, it will take
+about one rotation period to reach equilibrium.
 
 About units: the value for the gravitational constant G used in this code
 is such that the unit for length is 1.0 kpc, for mass 1.0e10 solar masses,
