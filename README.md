@@ -24,7 +24,7 @@ gain lots of energy over time due to the artificial viscosity, and will
 get a lot thicker.
 
 3- The vertical equilibrium of the gas component depends on your
-simulation setup.  If you use radiative cooling, it will settle in a
+simulation setup.  If you use radiative cooling, it will settle on a
 very short timescale (a few tens of Myr at most).  If not, it will take
 about one rotation period to reach equilibrium.
 
