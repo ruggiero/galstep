@@ -77,14 +77,6 @@ to run this code in OSX, please try [this](https://superuser.com/questions/30275
 * [Ruggiero & Lima Neto (2017)](http://adsabs.harvard.edu/cgi-bin/bib_query?arXiv:1703.08550)
 
 
-
-## Author
-
-    Rafael Ruggiero
-    Ph.D student at Universidade de São Paulo (USP), Brazil
-    Contact: rafael.ruggiero [at] usp.br
-
-
 ## Disclaimer
 
 Feel free to use this code in your work, but please link this page
