@@ -1,6 +1,6 @@
 # Run python galstep.py --help for a description.
 
-from os import path, remove
+from os import path, remove, system
 from sys import exit, stdout, path as syspath
 from time import sleep
 
@@ -13,19 +13,16 @@ import scipy.interpolate as interp
 from bisect import bisect_left
 from multiprocessing import Process, Array
 from argparse import ArgumentParser as parser
-from ConfigParser import ConfigParser
+import configparser
 from itertools import product
 import scipy.interpolate as inter
 
 from treecode import oct_tree, potential
 from snapwrite import write_snapshot
-syspath.append(path.join(path.dirname(__file__), '..', 'misc'))
-from units import temp_to_internal_energy
-from pygadgetreader import *
+import units
 
-
-G = 44920.0
-
+import warnings
+warnings.filterwarnings("ignore")
 
 def main():
   init()
@@ -41,7 +38,7 @@ def init():
   global disk_cut_r, disk_cut
   global N_total, M_total
   global phi_grid, rho_axis, z_axis, N_rho, Nz
-  global N_CORES, force_yes, force_no, output, input_, gas, bulge, factor, Z
+  global N_CORES, output, input_, gas, bulge, factor, Z
   global file_format
 
   flags = parser(description="Generates an initial conditions file for a\
@@ -50,25 +47,15 @@ def init():
   flags.add_argument('-cores', help='The number of cores to use during the\
                                      potential canculation. Make sure this\
                                      number is a factor of N_rho*N_z. Default\
-                                     is 1.',
-                     default=1)
-  flags.add_argument('--force-yes', help='Don\'t ask if you want to use the\
-                                          existing potential_data.txt file.\
-                                          Useful for automating the execution\
-                                          of the script.', action='store_true')
-  flags.add_argument('--force-no', help='Same as above, but with the opposite\
-                                         effect.', action='store_true')
+                                     is 1.', default=1)
   flags.add_argument('--hdf5', help='Output initial conditions in HDF5\
-                                     format.',
-                     action = 'store_true')
+                                     format.', action = 'store_true')
   flags.add_argument('-o', help='The name of the output file.',
                      metavar="init.dat", default="init.dat")
   flags.add_argument('-i', help='The name of the .ini file.',
                      metavar="params_galaxy.ini", default="params_galaxy.ini")
   args = flags.parse_args()
   N_CORES = int(args.cores)
-  force_yes = args.force_yes
-  force_no = args.force_no
   output = args.o
   input_ = args.i
   
@@ -78,10 +65,10 @@ def init():
     file_format = 'gadget2'
 
   if not path.isfile(input_):
-    print "Input file not found:", input_
+    print("Input file not found:", input_)
     exit(0)
 
-  config = ConfigParser()
+  config = configparser.ConfigParser(inline_comment_prefixes=';')
   config.read(input_)
   # Halo
   M_halo = config.getfloat('halo', 'M_halo')
@@ -128,7 +115,7 @@ def init():
 
 def generate_galaxy():
   global phi_grid
-  print "Setting positions..."
+  print("Setting positions...")
   coords_halo = set_halo_positions()
   coords_stars = set_disk_positions(N_disk, z0)
   if(bulge):
@@ -145,43 +132,19 @@ def generate_galaxy():
       coords = np.concatenate((coords_halo, coords_stars, coords_bulge))
     else:
       coords = np.concatenate((coords_halo, coords_stars))
-
-  if path.isfile('potential_data.txt'):
-    if force_yes:
-      ans = "y"
-    elif force_no:
-      ans = "n"
-    else:
-      print ("Use existing potential tabulation in potential_data.txt?\n"\
-              "Make sure it refers to the current parameters. (y/n)")
-      ans = raw_input()
-      while ans not in "yn":
-        print "Please give a proper answer. (y/n)"
-        ans = raw_input()
-    if ans == "y":
-      phi_grid = np.loadtxt('potential_data.txt')
-    else:
-      remove('potential_data.txt')
-      if(gas):
-        fill_potential_grid(coords_stars, coords_gas) 
-      else:
-        fill_potential_grid(coords_stars) 
-      np.savetxt('potential_data.txt', phi_grid)
-  else:
-    if(gas):
-      fill_potential_grid(coords_stars, coords_gas)
-    else:
-      fill_potential_grid(coords_stars) 
-    np.savetxt('potential_data.txt', phi_grid)
   if(gas):
-    print "Setting temperatures..."
+    fill_potential_grid(coords_stars, coords_gas)
+  else:
+    fill_potential_grid(coords_stars) 
+  if(gas):
+    print("Setting temperatures...")
     U, T_cl_grid = set_temperatures(coords_gas) 
-    print "Setting densitites..."
+    print("Setting densitites...")
     rho = np.zeros(N_gas)
-    print "Setting velocities..."
+    print("Setting velocities...")
     vels = set_velocities(coords, T_cl_grid) 
   else:
-    print "Setting velocities..."
+    print("Setting velocities...")
     vels = set_velocities(coords, None)
   coords = np.array(coords, order='C')
   # Don't need this for HDF5 - D. Rennehan
@@ -218,9 +181,9 @@ def dehnen_inverse_cumulative(Mc, M, a, gamma):
 
 def dehnen_potential(r, M, a, gamma):
   if gamma != 2:
-    return (G*M)/a * (-1.0/(2-gamma)) * (1-(r/(r+float(a)))**(2-gamma))
+    return (units.G*M)/a * (-1.0/(2-gamma)) * (1-(r/(r+float(a)))**(2-gamma))
   else:
-    return (G*M)/a * np.log(r/(r+float(a)))
+    return (units.G*M)/a * np.log(r/(r+float(a)))
 
 
 def dehnen_density(r, M, a, gamma):
@@ -235,10 +198,10 @@ def disk_density(rho, z, M, z0):
 def set_halo_positions():
   global halo_cut_M
   halo_cut_M = dehnen_cumulative(halo_cut_r, M_halo, a_halo, gamma_halo)
-  print "%.0f%% of halo mass cut by the truncation..." % \
-        (100*(1-halo_cut_M/M_halo))
+  print( "%.0f%% of halo mass cut by the truncation..." % \
+        (100*(1-halo_cut_M/M_halo)))
   if halo_cut_M < 0.9*M_halo:
-    print "  \_ Warning: this is more than 10%% of the total halo mass!"
+    print( "  \_ Warning: this is more than 10%% of the total halo mass!")
   radii = dehnen_inverse_cumulative(nprand.sample(N_halo) * halo_cut_M,
     M_halo, a_halo, gamma_halo)
   thetas = np.arccos(nprand.sample(N_halo)*2 - 1)
@@ -253,10 +216,10 @@ def set_halo_positions():
 def set_bulge_positions():
   global bulge_cut_M
   bulge_cut_M = dehnen_cumulative(bulge_cut_r, M_bulge, a_bulge, gamma_bulge)
-  print "%.0f%% of bulge mass cut by the truncation..." % \
-        (100*(1-bulge_cut_M/M_bulge))
+  print( "%.0f%% of bulge mass cut by the truncation..." % \
+        (100*(1-bulge_cut_M/M_bulge)))
   if bulge_cut_M < 0.9*M_bulge:
-    print "  \_ Warning: this is more than 10%% of the total bulge mass!"
+    print ("  \_ Warning: this is more than 10%% of the total bulge mass!")
   radii = dehnen_inverse_cumulative(nprand.sample(N_bulge) * bulge_cut_M,
     M_bulge, a_bulge, gamma_bulge)
   thetas = np.arccos(nprand.sample(N_bulge)*2 - 1)
@@ -272,10 +235,10 @@ def set_disk_positions(N, z0):
   global disk_cut
   radii = np.zeros(N)
   disk_cut = disk_radial_cumulative(disk_cut_r)
-  print "%.0f%% of disk mass cut by the truncation..." % \
-        (100*(1-disk_cut))
+  print( "%.0f%% of disk mass cut by the truncation..." % \
+        (100*(1-disk_cut)))
   if disk_cut < 0.9:
-    print "  \_ Warning: this is more than 10% of the total disk mass!"
+    print( "  \_ Warning: this is more than 10% of the total disk mass!")
   sample = nprand.sample(N) * disk_cut
   for i, s in enumerate(sample):
     radii[i] = disk_radial_inverse_cumulative(s)
@@ -314,7 +277,7 @@ def fill_potential_grid(coords_stars, coords_gas=None):
   # performance. The tree takes longer to calculate the potential
   # at small radii. ip stands for 'index pair'.
   ip = nprand.permutation(list(product(range(N_rho), range(Nz))))
-  print "Building gravity tree..."
+  print("Building gravity tree...")
   gravtree = oct_tree(200*a_halo*2)
   for i, part in enumerate(coords_stars):
     prog = 100*float(i)/len(coords_stars)
@@ -330,8 +293,9 @@ def fill_potential_grid(coords_stars, coords_gas=None):
  
   print ("Filling potential grid...")
   def loop(n_loop, N_CORES):
-    for i in range(n_loop*N_rho*Nz/N_CORES, (1+n_loop)*N_rho*Nz/N_CORES):
-      prog[n_loop] = 100*float(i-n_loop*N_rho*Nz/N_CORES)/(N_rho*Nz/N_CORES)
+      
+    for i in range(n_loop*N_rho*Nz//N_CORES, (1+n_loop)*N_rho*Nz//N_CORES):
+      prog[n_loop] = 100*float(i-n_loop*N_rho*Nz//N_CORES)//(N_rho*Nz//N_CORES)
       m = ip[i][0]
       n = ip[i][1]
       r = (rho_axis[m]**2 + z_axis[n]**2)**0.5
@@ -357,7 +321,7 @@ def fill_potential_grid(coords_stars, coords_gas=None):
   except KeyboardInterrupt:
     [p.terminate() for p in proc]
     [p.join() for p in proc]
-    print "\nProcess canceled."
+    print("\nProcess canceled.")
     exit(0)
   for i in range(N_rho):
     for j in range(Nz):
@@ -510,7 +474,7 @@ def set_temperatures(coords_gas):
   meanweight_n = 4.0 / (1 + 3 * HYDROGEN_MASSFRAC)
   meanweight_i = 4.0 / (3 + 5 * HYDROGEN_MASSFRAC)
   disk_temp = 10000
-  U.fill(temp_to_internal_energy(disk_temp))
+  U.fill(units.temp_to_internal_energy(disk_temp))
   if(disk_temp >= 1.0e4):
     T_cl_grid.fill(disk_temp / MP_OVER_KB / meanweight_i)
   else:
@@ -543,26 +507,20 @@ def write_input_file(galaxy_data):
       Zs = np.zeros(N_gas + N_disk + N_bulge)
       Zs.fill(Z)
       write_snapshot([N_gas, N_halo, N_disk, N_bulge, 0, 0],
-        input_,
-        outfile=output,
         data_list=[coords, vels, ids, masses, U, rho, smooths, Zs],
-        file_format=file_format)
+        outfile=output)
     else:
       write_snapshot([N_gas, N_halo, N_disk, N_bulge, 0, 0],
-        input_,
-        outfile=output,
         data_list=[coords, vels, ids, masses, U, rho, smooths],
-        file_format=file_format)
+        outfile=output)
   else:
     if(bulge):
       masses = np.concatenate((m_halo, m_disk, m_bulge))
     else:
       masses = np.concatenate((m_halo, m_disk))
     write_snapshot([0, N_halo, N_disk, N_bulge, 0, 0],
-      input_,
-      outfile=output,
       data_list=[coords, vels, ids, masses],
-      file_format=file_format)
+      outfile=output)
 
 
 if __name__ == '__main__':
