@@ -157,6 +157,14 @@ def write_snapshot(n_part, data_list, outfile='init.dat',
                     # TODO currently all gas+stars get the same metallicity.
                     # this should be an option in the configuration as well.
                     
+                    #Metallicity properties
+                    if i in [0, 2, 3, 4]:
+                        current_family.create_dataset('Metallicity',
+                                    data = Z[start_index:end_index],
+                                    dtype = dtype)
+
+
+                    #Gas specific properties
                     if i is 0 and N_gas > 0:
                         current_family.create_dataset('InternalEnergy',
                                 data = U_data[start_index:end_index],
