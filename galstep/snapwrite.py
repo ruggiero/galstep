@@ -2,11 +2,13 @@ import sys
 import os
 import struct
 import numpy as np
+import snapwrite
 
 def read_header(n_part):
     h_data = []
 
     #TODO enable funtionalities from the config parser
+    #TODO make it less hardcoded
     for j in n_part: # n_part
         h_data.append(int(j))
     for j in range(6): # mass table
@@ -31,7 +33,30 @@ def read_header(n_part):
     cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\
     cccccccccccccccccccc')
     packed_data = s.pack(*h_data)
-    return packed_data, h_data
+    return packed_data
+
+def read_header_hdf5(file, n_part, double_precision=True):
+    #TODO enable funtionalities from the config parser
+    #TODO make it less hardcoded
+    header = file.create_group('Header')
+    header.attrs['NumPart_ThisFile'] = np.asarray(n_part)
+    header.attrs['NumPart_Total'] = np.asarray(n_part)
+    header.attrs['NumPart_Total_HighWord'] = 0 * np.asarray(n_part)
+    header.attrs['MassTable'] = np.zeros(6)
+    header.attrs['Time'] = float(0.0)
+    header.attrs['Redshift'] = float(0.0)
+    header.attrs['BoxSize'] = float(0.0)
+    header.attrs['NumFilesPerSnapshot'] = int(1)
+    header.attrs['Omega0'] = float(0.0)
+    header.attrs['OmegaLambda'] = float(0.0)
+    header.attrs['HubbleParam'] = float(1.0)
+    header.attrs['Flag_Sfr'] = int(0.0)
+    header.attrs['Flag_Cooling'] = int(0)
+    header.attrs['Flag_StellarAge'] = int(0)
+    header.attrs['Flag_Metals'] = int(0)
+    header.attrs['Flag_Feedback'] = int(0)
+    header.attrs['Flag_DoublePrecision'] = double_precision
+    header.attrs['Flag_IC_Info'] = 0
 
 def write_dummy(f, values_list):
     for i in values_list:
@@ -61,7 +86,6 @@ def write_snapshot(n_part, data_list, outfile='init.dat',
     N_gas = n_part[0]
 
     #Getting data
-    header_data, raw_hdata = read_header(n_part)
     pos_data = data_list[0]
     vel_data = data_list[1]
     ID_data = data_list[2]
@@ -70,11 +94,13 @@ def write_snapshot(n_part, data_list, outfile='init.dat',
         U_data = data_list[4]
         rho_data = data_list[5]
         smoothing_data = data_list[6]
-    #Metalicity?
     if len(data_list) > 7:
         Z = data_list[7]
+    else:
+        Z = None
 
-    if file_format is 'gadget2':
+    if file_format == 'gadget2':
+        header_data = read_header(n_part)
         with open(outfile, 'wb') as f:
            write_block(f, header_data, None, 'HEAD')
            write_block(f, pos_data, 'f', 'POS ')
@@ -86,7 +112,7 @@ def write_snapshot(n_part, data_list, outfile='init.dat',
                write_block(f, rho_data, 'f', 'RHO ')
                write_block(f, smoothing_data, 'f', 'HSML')
     
-    elif file_format is 'hdf5':
+    elif file_format == 'hdf5':
         import h5py
 
         # At this point in the original galstep file there are what
@@ -103,37 +129,13 @@ def write_snapshot(n_part, data_list, outfile='init.dat',
                 dtype = 'float32'
 
             #Header
-            #TODO Insert this in the header function
-            #create a function called here that receives the object
-            # f and a file_format flag, generate the group 'Header'
-            # and insert all information *if* the flag file_format
-            # is 'hdf5'
-            header = f.create_group('Header')
-            header.attrs['NumPart_ThisFile'] = np.asarray(n_part)
-            header.attrs['NumPart_Total'] = np.asarray(n_part)
-            header.attrs['NumPart_Total_HighWord'] = 0 * np.asarray(n_part)
-            header.attrs['MassTable'] = np.zeros(6)
-            header.attrs['Time'] = float(raw_hdata[12])
-            header.attrs['Redshift'] = float(raw_hdata[13])
-            header.attrs['BoxSize'] = float(raw_hdata[24])
-            header.attrs['NumFilesPerSnapshot'] = int(raw_hdata[23])
-            header.attrs['Omega0'] = float(raw_hdata[25])
-            header.attrs['OmegaLambda'] = float(raw_hdata[26])
-            header.attrs['HubbleParam'] = float(raw_hdata[27])
-            header.attrs['Flag_Sfr'] = int(raw_hdata[14])
-            header.attrs['Flag_Cooling'] = int(raw_hdata[22])
-            header.attrs['Flag_StellarAge'] = int(raw_hdata[28])
-            header.attrs['Flag_Metals'] = int(raw_hdata[29])
-            header.attrs['Flag_Feedback'] = int(raw_hdata[15])
-            header.attrs['Flag_DoublePrecision'] = double_precision
-            header.attrs['Flag_IC_Info'] = 0
-            
+            read_header_hdf5(f, n_part, double_precision)
             
             #Particle families
             for i, j in enumerate(n_part):
                 # HDF5 format doesn't require info for particles that
                 # don't exist
-                if j:
+                if j == 0:
                     continue
                 else:
                     current_family = f.create_group('PartType'+str(i))
@@ -158,14 +160,14 @@ def write_snapshot(n_part, data_list, outfile='init.dat',
                     # this should be an option in the configuration as well.
                     
                     #Metallicity properties
-                    if i in [0, 2, 3, 4]:
+                    if (i in [0, 2, 3, 4]) and (Z != None):
                         current_family.create_dataset('Metallicity',
                                     data = Z[start_index:end_index],
                                     dtype = dtype)
 
 
                     #Gas specific properties
-                    if i is 0 and N_gas > 0:
+                    if i == 0 and N_gas > 0:
                         current_family.create_dataset('InternalEnergy',
                                 data = U_data[start_index:end_index],
                                 dtype = dtype)
