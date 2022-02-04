@@ -1,15 +1,14 @@
 # Run python galstep.py --help for a description.
 
-from os import path, remove, system
-from sys import exit, stdout, path as syspath
+from os import path
+from sys import exit, stdout, path
 from time import sleep
 
 import numpy as np
 import numpy.random as nprand
-from numpy import cos, sin, pi, arccos, log10, exp, arctan2, cosh
+from numpy import cos, sin, pi, log10, exp, arctan2, cosh
 from scipy.optimize import brentq
 from scipy import integrate
-import scipy.interpolate as interp
 from bisect import bisect_left
 from multiprocessing import Process, Array
 from argparse import ArgumentParser as parser
